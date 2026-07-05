@@ -146,7 +146,10 @@ function propPopupHtml(p) {
       <img src="${photos[0]}" style="width:100%;max-height:120px;object-fit:cover;cursor:zoom-in;border:1px solid var(--border2);border-radius:8px;display:block;" onclick="zoomPhoto(${p.id})">
       ${photos.length > 1 ? `<span style="position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;padding:2px 6px;letter-spacing:1px;pointer-events:none;">${photos.length} PHOTOS</span>` : ''}
     </div>` : ''}
-    ${isEditor() ? `<div style="margin-top:6px;"><button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button></div>` : ''}
+    <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;">
+      <button class="btn btn-sm btn-success" onclick="openListing(${p.id})">VIEW LISTING</button>
+      ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button>` : ''}
+    </div>
   </div>`;
 }
 
@@ -227,7 +230,7 @@ function zonePopupHtml(z) {
       <span style="color:${statusColor(linked.status)};">&#9632; ${esc(String(linked.status || 'UNKNOWN').toUpperCase())}</span>
       &middot; <b>${fmtMoney(linked.price)}</b>${linked.owner ? ' &middot; ' + esc(linked.owner) : ''}
     </div>
-    <div style="margin-top:8px;"><button class="btn btn-sm" onclick="goToProperty(${linked.id})">VIEW LISTING</button></div>` : ''}
+    <div style="margin-top:8px;"><button class="btn btn-sm btn-success" onclick="openListing(${linked.id})">VIEW LISTING</button></div>` : ''}
     ${isEditor() ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
       ${!linked ? `<button class="btn btn-sm btn-success" onclick="listZoneAsProperty(${z.id})">LIST AS PROPERTY</button>` : ''}
       <button class="btn btn-sm btn-warn" onclick="editZoneInfo(${z.id})">EDIT</button>
