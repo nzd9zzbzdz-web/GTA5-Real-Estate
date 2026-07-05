@@ -229,6 +229,22 @@ function renderListings() {
     : `<div class="empty">${state.properties.length ? 'NO LISTINGS MATCH THAT SEARCH' : (isEditor() ? 'NO PROPERTIES YET — GO TO THE MAP AND HIT + ADD PROPERTY' : 'NO PROPERTIES LISTED YET')}</div>`;
 }
 
+// ---------- UI polish ----------
+// Material-style ripple radiating from the click point.
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.btn, .nav-tab, .stat-card, .modal-close');
+  if (!el || el.disabled) return;
+  const rect = el.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height) * 2.2;
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  r.style.width = r.style.height = size + 'px';
+  r.style.left = (e.clientX - rect.left - size / 2) + 'px';
+  r.style.top = (e.clientY - rect.top - size / 2) + 'px';
+  el.appendChild(r);
+  setTimeout(() => r.remove(), 650);
+});
+
 // ---------- boot ----------
 // Close modals when clicking the dark overlay background.
 document.querySelectorAll('.modal-overlay').forEach(el => {

@@ -134,16 +134,16 @@ function propPopupHtml(p) {
   return `<div style="min-width:190px;max-width:240px;">
     <div style="color:${c};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; ${esc(String(p.status || 'UNKNOWN').toUpperCase())}</div>
     <div style="font-weight:bold;font-size:14px;margin-bottom:2px;">${esc(pinGlyphOf(p))} ${esc(p.name)}</div>
-    <div style="font-size:11px;color:#666;margin-bottom:4px;">${esc(String(p.type || 'OTHER').toUpperCase())}${p.garage ? ' &middot; GARAGE: ' + esc(p.garage) : ''}</div>
-    <div style="font-size:16px;font-weight:bold;color:#8a6d1a;margin-bottom:4px;">${fmtMoney(p.price)}${p.status === 'For Rent' || p.status === 'Rented' ? ' <span style="font-size:10px;font-weight:normal;">/ week</span>' : ''}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">${esc(String(p.type || 'OTHER').toUpperCase())}${p.garage ? ' &middot; GARAGE: ' + esc(p.garage) : ''}</div>
+    <div style="font-size:16px;font-weight:bold;color:var(--cyan);margin-bottom:4px;">${fmtMoney(p.price)}${p.status === 'For Rent' || p.status === 'Rented' ? ' <span style="font-size:10px;font-weight:normal;">/ week</span>' : ''}</div>
     ${p.owner ? `<div style="font-size:11px;margin-bottom:4px;">OWNER: <b>${esc(p.owner)}</b></div>` : ''}
     ${p.coords ? `<div style="font-size:11px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
-      <span style="color:#666;">COORDS:</span> <b>${esc(p.coords)}</b>
+      <span style="color:var(--text3);">COORDS:</span> <b>${esc(p.coords)}</b>
       <button class="btn btn-sm" style="padding:2px 8px;font-size:9px;" onclick="copyCoords(${p.id}, this)">COPY</button>
     </div>` : ''}
     ${p.description ? `<div style="font-size:11px;line-height:1.5;margin-bottom:4px;">${esc(p.description)}</div>` : ''}
     ${photos.length ? `<div style="position:relative;margin-bottom:4px;">
-      <img src="${photos[0]}" style="width:100%;max-height:120px;object-fit:cover;cursor:zoom-in;border:1px solid #ccc;display:block;" onclick="zoomPhoto(${p.id})">
+      <img src="${photos[0]}" style="width:100%;max-height:120px;object-fit:cover;cursor:zoom-in;border:1px solid var(--border2);border-radius:8px;display:block;" onclick="zoomPhoto(${p.id})">
       ${photos.length > 1 ? `<span style="position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;padding:2px 6px;letter-spacing:1px;pointer-events:none;">${photos.length} PHOTOS</span>` : ''}
     </div>` : ''}
     ${isEditor() ? `<div style="margin-top:6px;"><button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button></div>` : ''}
