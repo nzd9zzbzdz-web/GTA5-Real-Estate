@@ -263,12 +263,12 @@ body {
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th { color: var(--text3); font-size: 10px; font-weight: 600; letter-spacing: 2px; text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--gbrd); user-select: none; transition: color .15s ease; }
 th:hover { color: var(--cyan); }
-td { padding: 11px 14px; border-bottom: 1px solid rgba(255, 255, 255, .05); color: var(--text2); vertical-align: middle; transition: background .12s ease; }
+td { padding: 18px 14px; border-bottom: 1px solid rgba(255, 255, 255, .05); color: var(--text2); vertical-align: middle; transition: background .12s ease; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255, 255, 255, .035); color: var(--text); }
 td.name-col { color: var(--cyan); font-weight: 600; }
-.name-cell { display: flex; align-items: center; gap: 10px; }
-.list-thumb { width: 56px; height: 38px; flex-shrink: 0; object-fit: cover; border: 1px solid var(--gbrd2); border-radius: 8px; cursor: zoom-in; transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease; }
+.name-cell { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+.list-thumb { width: 84px; height: 56px; flex-shrink: 0; object-fit: cover; border: 1px solid var(--gbrd2); border-radius: 10px; cursor: zoom-in; transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease; }
 img.list-thumb:hover { transform: scale(1.06); border-color: rgba(232, 193, 90, .5); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); }
 .list-thumb-ph { display: flex; align-items: center; justify-content: center; background: var(--glass); font-size: 17px; cursor: default; }
 .status-badge { display: inline-block; padding: 3px 10px; font-size: 9px; font-weight: 700; letter-spacing: 2px; border: 1px solid; border-radius: 999px; background: rgba(0, 0, 0, .25); white-space: nowrap; }
