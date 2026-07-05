@@ -2,10 +2,11 @@
 // store.js — Data layer with two modes, picked automatically
 // from js/config.js:
 //
-//   SHARED — SB_URL/SB_ANON_KEY are set: reads/writes the
-//            re_properties / re_zones tables in a Supabase
-//            project, so every player sees the same map.
-//   LOCAL  — config left empty: this browser's localStorage only.
+//   SHARED — FIREBASE_CONFIG is set: reads/writes the Firestore
+//            collections re_properties / re_zones, so every
+//            player sees the same map. Editor accounts live in
+//            Firebase Auth + the re_editors collection.
+//   LOCAL  — config left null: this browser's localStorage only.
 //
 // In shared mode localStorage doubles as an offline cache, and
 // EXPORT/IMPORT still work as backup/restore.
@@ -15,162 +16,149 @@ const LS_KEY = 'greyhave_realestate_v1';
 
 let state = { properties: [], zones: [] };
 
-function backendOn() { return typeof SB_URL !== 'undefined' && !!SB_URL && !!SB_ANON_KEY; }
+let _db = null;       // Firestore handle (null = local mode)
+let _auth = null;
+let _user = null;     // Firebase auth user (or null)
+let _session = null;  // { user_id, username, approved, admin } for the UI
 
-// Columns that exist in the database — imports are trimmed to these
-// so a hand-edited JSON with extra keys doesn't fail the insert.
+function backendOn() { return !!_db; }
+
+function initFirebase() {
+  if (typeof FIREBASE_CONFIG === 'undefined' || !FIREBASE_CONFIG) return;
+  if (typeof firebase === 'undefined') return;   // CDN failed — stay local
+  firebase.initializeApp(FIREBASE_CONFIG);
+  _auth = firebase.auth();
+  _db = firebase.firestore();
+}
+
+// Columns that belong in the database — imports are trimmed to these
+// so a hand-edited JSON with extra keys doesn't pollute the docs.
 const PROP_COLS = ['id', 'name', 'type', 'status', 'price', 'owner', 'garage', 'description', 'photo', 'x', 'y', 'created_at', 'updated_at'];
 const ZONE_COLS = ['id', 'name', 'note', 'color', 'coordinates'];
 function pick(o, cols) { const r = {}; cols.forEach(k => { if (o[k] !== undefined) r[k] = o[k]; }); return r; }
 
 // ---------- auth (editor accounts) ----------
 // Editors sign up in the app with a USERNAME + password — no email.
-// Supabase auth requires an email format internally, so the username
+// Firebase auth requires an email format internally, so the username
 // becomes username@editors.greyhaven.local behind the scenes; nothing
 // is ever sent anywhere. New accounts start PENDING (view-only) until
-// an admin approves them in the ADMIN panel (re_editors table).
-// The session lives in localStorage so editors stay logged in.
-const AUTH_KEY = 'greyhave_realestate_auth_v1';
+// an admin approves them in the ADMIN panel (re_editors collection).
 const AUTH_DOMAIN = 'editors.greyhaven.local';
-let _session = null;
 
 function authEmail(username) { return username.toLowerCase() + '@' + AUTH_DOMAIN; }
 function validUsername(u) { return /^[a-zA-Z0-9_-]{3,20}$/.test(u); }
-
-function loadSession() {
-  try { _session = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { _session = null; }
-}
-
-function saveSession(s) {
-  _session = s;
-  if (s) localStorage.setItem(AUTH_KEY, JSON.stringify(s));
-  else localStorage.removeItem(AUTH_KEY);
-}
 
 // Local mode has no accounts — everyone edits their own browser data.
 function isEditor() { return !backendOn() || !!(_session && _session.approved); }
 function isAdmin()  { return backendOn() && !!(_session && _session.approved && _session.admin); }
 
-async function authReq(path, body) {
-  const res = await fetch(SB_URL.replace(/\/+$/, '') + '/auth/v1/' + path, {
-    method: 'POST',
-    headers: { apikey: SB_ANON_KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+// Firebase restores logins by itself (its own localStorage entry);
+// this resolves once the initial auth state is known so boot can wait.
+function initAuthState() {
+  if (!backendOn()) return Promise.resolve();
+  return new Promise(resolve => {
+    const unsub = _auth.onAuthStateChanged(async u => {
+      unsub();
+      _user = u;
+      await fetchEditorStatus();
+      resolve();
+    });
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error_description || data.msg || data.message || ('AUTH ERROR ' + res.status));
-  return data;
 }
 
-function sessionFrom(data) {
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    // refresh 60s early so a token never expires mid-request
-    expires_at: Date.now() + Math.max((data.expires_in || 3600) - 60, 60) * 1000,
-    user_id: (data.user && data.user.id) || (_session && _session.user_id) || null,
-    username: (_session && _session.username) || '',
-    approved: !!(_session && _session.approved),
-    admin: !!(_session && _session.admin)
-  };
+function friendlyAuthError(e) {
+  const code = (e && e.code) || '';
+  if (/user-not-found|wrong-password|invalid-credential|invalid-login/.test(code)) return new Error('WRONG USERNAME OR PASSWORD');
+  if (/email-already-in-use/.test(code)) return new Error('THAT USERNAME IS TAKEN');
+  if (/weak-password/.test(code)) return new Error('PASSWORD TOO WEAK — USE AT LEAST 6 CHARACTERS');
+  if (/too-many-requests/.test(code)) return new Error('TOO MANY ATTEMPTS — WAIT A MINUTE AND TRY AGAIN');
+  if (/network-request-failed/.test(code)) return new Error('NETWORK ERROR — CHECK YOUR CONNECTION');
+  return new Error(String((e && e.message) || 'AUTH ERROR').replace(/^Firebase:\s*/i, '').replace(/\s*\(auth.*\)\.?$/, ''));
 }
 
 async function login(username, password) {
-  const data = await authReq('token?grant_type=password', { email: authEmail(username), password });
-  _session = null;                         // fresh session, no stale flags
-  const s = sessionFrom(data);
-  s.username = username.toLowerCase();
-  saveSession(s);
+  try {
+    const cred = await _auth.signInWithEmailAndPassword(authEmail(username), password);
+    _user = cred.user;
+  } catch (e) { throw friendlyAuthError(e); }
   await fetchEditorStatus();
 }
 
 async function signupEditor(username, password) {
-  let data;
   try {
-    data = await authReq('signup', { email: authEmail(username), password });
-  } catch (e) {
-    if (/already/i.test(e.message)) throw new Error('THAT USERNAME IS TAKEN');
-    throw e;
-  }
-  if (!data.access_token) throw new Error('SIGNUP INCOMPLETE — "CONFIRM EMAIL" MUST BE TURNED OFF IN SUPABASE');
-  _session = null;
-  const s = sessionFrom(data);
-  s.username = username.toLowerCase();
-  saveSession(s);
+    const cred = await _auth.createUserWithEmailAndPassword(authEmail(username), password);
+    _user = cred.user;
+  } catch (e) { throw friendlyAuthError(e); }
   // File the access request — starts unapproved; an admin flips it.
-  await sbReq('re_editors', { method: 'POST', body: { user_id: s.user_id, username: s.username } });
+  await _db.collection('re_editors').doc(_user.uid).set({
+    username: username.toLowerCase(),
+    approved: false,
+    admin: false,
+    requested_at: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  await fetchEditorStatus();
+}
+
+function logout() {
+  _user = null; _session = null;
+  if (_auth) _auth.signOut().catch(() => {});
 }
 
 // Re-reads approved/admin flags so an approval takes effect on the
 // next refresh without the editor logging out and back in.
 async function fetchEditorStatus() {
-  if (!_session || !_session.user_id) return;
+  if (!_user) { _session = null; return; }
+  const fallback = (_user.email || '').split('@')[0];
   try {
-    const rows = await sbReq('re_editors?user_id=eq.' + _session.user_id + '&select=username,approved,admin');
-    if (rows && rows[0]) {
-      _session.username = rows[0].username;
-      _session.approved = !!rows[0].approved;
-      _session.admin = !!rows[0].admin;
-    } else {
-      _session.approved = false; _session.admin = false;   // removed by an admin
-    }
-    saveSession(_session);
-  } catch (e) { /* offline — keep last known status */ }
-}
-
-async function logout() {
-  const token = _session && _session.access_token;
-  saveSession(null);
-  if (token) {
-    // best-effort server-side revoke; local session is already gone
-    fetch(SB_URL.replace(/\/+$/, '') + '/auth/v1/logout', {
-      method: 'POST',
-      headers: { apikey: SB_ANON_KEY, Authorization: 'Bearer ' + token }
-    }).catch(() => {});
-  }
-}
-
-// Returns a valid access token, refreshing if stale; null = not logged in.
-async function currentAccessToken() {
-  if (!_session) return null;
-  if (Date.now() < _session.expires_at) return _session.access_token;
-  try {
-    const data = await authReq('token?grant_type=refresh_token', { refresh_token: _session.refresh_token });
-    saveSession(sessionFrom(data));
-    return _session.access_token;
+    const doc = await _db.collection('re_editors').doc(_user.uid).get();
+    const d = doc.exists ? doc.data() : {};
+    _session = {
+      user_id: _user.uid,
+      username: d.username || fallback,
+      approved: !!d.approved,
+      admin: !!d.admin
+    };
   } catch (e) {
-    saveSession(null);
-    if (typeof updateAuthUI === 'function') updateAuthUI();
-    throw new Error('SESSION EXPIRED — LOG IN AGAIN');
+    // offline — keep last known status if we had one
+    if (!_session) _session = { user_id: _user.uid, username: fallback, approved: false, admin: false };
   }
 }
 
-// ---------- Supabase REST (PostgREST) ----------
-async function sbReq(path, opts = {}) {
-  const method = opts.method || 'GET';
-  const headers = { apikey: SB_ANON_KEY };
-  // Logged-in editor: their token carries write rights. Otherwise
-  // old JWT-style anon keys also go in the Authorization header
-  // (new sb_publishable_* keys must NOT).
-  const token = await currentAccessToken();
-  if (token) headers.Authorization = 'Bearer ' + token;
-  else if (!SB_ANON_KEY.startsWith('sb_')) headers.Authorization = 'Bearer ' + SB_ANON_KEY;
-  if (method !== 'GET') { headers['Content-Type'] = 'application/json'; headers.Prefer = 'return=minimal'; }
-  const res = await fetch(SB_URL.replace(/\/+$/, '') + '/rest/v1/' + path, {
-    method, headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
-  });
-  if (!res.ok) {
-    const detail = (await res.text().catch(() => '')).slice(0, 200);
-    throw new Error('DATABASE ERROR ' + res.status + (detail ? ' — ' + detail : ''));
+// ---------- Firestore reads/writes ----------
+// Firestore can't store nested arrays, so zone polygon coordinates
+// ([[y,x], ...]) travel as a JSON string and are parsed on load.
+function encodeRow(coll, row) {
+  if (coll === 're_zones' && Array.isArray(row.coordinates)) {
+    return Object.assign({}, row, { coordinates: JSON.stringify(row.coordinates) });
   }
-  return method === 'GET' ? res.json() : null;
+  return row;
+}
+
+function decodeRow(coll, d) {
+  if (coll === 're_zones' && typeof d.coordinates === 'string') {
+    try { return Object.assign({}, d, { coordinates: JSON.parse(d.coordinates) }); } catch (e) { }
+  }
+  return d;
 }
 
 // No-ops in local mode so map.js has a single code path.
-async function dbInsert(table, row)     { if (backendOn()) await sbReq(table, { method: 'POST', body: row }); }
-async function dbPatch(table, id, data) { if (backendOn()) await sbReq(table + '?id=eq.' + id, { method: 'PATCH', body: data }); }
-async function dbDelete(table, id)      { if (backendOn()) await sbReq(table + '?id=eq.' + id, { method: 'DELETE' }); }
+async function dbInsert(coll, row)     { if (backendOn()) await _db.collection(coll).doc(String(row.id)).set(encodeRow(coll, row)); }
+async function dbPatch(coll, id, data) { if (backendOn()) await _db.collection(coll).doc(String(id)).update(encodeRow(coll, data)); }
+async function dbDelete(coll, id)      { if (backendOn()) await _db.collection(coll).doc(String(id)).delete(); }
+
+// Firestore batches cap at 500 ops — chunk bulk work.
+async function batchWrite(ops) {
+  for (let i = 0; i < ops.length; i += 400) {
+    const b = _db.batch();
+    ops.slice(i, i + 400).forEach(fn => fn(b));
+    await b.commit();
+  }
+}
+
+async function clearCollection(coll) {
+  const snap = await _db.collection(coll).get();
+  await batchWrite(snap.docs.map(d => b => b.delete(d.ref)));
+}
 
 // ---------- load / cache ----------
 function loadLocalCache() {
@@ -199,14 +187,14 @@ function saveLocalCache() {
 async function loadState() {
   loadLocalCache();                             // instant paint from cache
   if (!backendOn()) { setSyncBadge('LOCAL DATA — NO SERVER', ''); return; }
-  if (_session) await fetchEditorStatus();      // pick up approvals/revokes
+  if (_user) await fetchEditorStatus();         // pick up approvals/revokes
   try {
-    const [props, zones] = await Promise.all([
-      sbReq('re_properties?select=*'),
-      sbReq('re_zones?select=*')
+    const [ps, zs] = await Promise.all([
+      _db.collection('re_properties').get(),
+      _db.collection('re_zones').get()
     ]);
-    state.properties = props || [];
-    state.zones = zones || [];
+    state.properties = ps.docs.map(d => decodeRow('re_properties', d.data()));
+    state.zones = zs.docs.map(d => decodeRow('re_zones', d.data()));
     saveLocalCache();
     setSyncBadge('SHARED DB — CONNECTED', 'var(--greentxt)');
   } catch (e) {
@@ -282,10 +270,10 @@ function importData(input) {
     if (!confirm(`Import from "${file.name}"?\n${scope}\nTip: use EXPORT first if you want a backup.`)) return;
     try {
       if (backendOn()) {
-        await sbReq('re_properties?id=gt.0', { method: 'DELETE' });
-        await sbReq('re_zones?id=gt.0', { method: 'DELETE' });
-        if (props.length) await sbReq('re_properties', { method: 'POST', body: props });
-        if (zones.length) await sbReq('re_zones', { method: 'POST', body: zones });
+        await clearCollection('re_properties');
+        await clearCollection('re_zones');
+        await batchWrite(props.map(p => b => b.set(_db.collection('re_properties').doc(String(p.id)), encodeRow('re_properties', p))));
+        await batchWrite(zones.map(z => b => b.set(_db.collection('re_zones').doc(String(z.id)), encodeRow('re_zones', z))));
       }
     } catch (err) { alert('IMPORT FAILED — ' + err.message + '\nRe-check the database, then try again.'); return; }
     state.properties = props;

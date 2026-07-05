@@ -1,0 +1,60 @@
+// ============================================================
+// Greyhaven Real Estate — Firestore security rules.
+// Paste this whole file in Firebase console →
+// Firestore Database → Rules tab → Publish.
+//
+// Anyone can VIEW the map. To edit, people request an account in
+// the app (username + password); the account starts PENDING until
+// an admin approves it in the app's ADMIN panel.
+//
+// Bootstrapping the FIRST admin (one time):
+//   1. Request access in the app with your own username.
+//   2. Console → Firestore Database → re_editors → your document →
+//      edit fields: approved = true, admin = true.
+//   All later approvals happen in the app.
+// ============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function myEditorDoc() {
+      return get(/databases/$(database)/documents/re_editors/$(request.auth.uid)).data;
+    }
+
+    function isApprovedEditor() {
+      return signedIn() && myEditorDoc().approved == true;
+    }
+
+    function isAdmin() {
+      return signedIn() && myEditorDoc().approved == true && myEditorDoc().admin == true;
+    }
+
+    // Map data: everyone can read, only approved editors can change.
+    match /re_properties/{id} {
+      allow read: if true;
+      allow create, update, delete: if isApprovedEditor();
+    }
+
+    match /re_zones/{id} {
+      allow read: if true;
+      allow create, update, delete: if isApprovedEditor();
+    }
+
+    // Editor roster: you may file your own request (always starting
+    // unapproved + non-admin) and see your own status; admins see
+    // and manage everyone.
+    match /re_editors/{uid} {
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.approved == false
+        && request.resource.data.admin == false;
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+  }
+}

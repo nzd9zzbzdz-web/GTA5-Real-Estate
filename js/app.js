@@ -128,7 +128,8 @@ async function renderAdminPanel() {
   wrap.innerHTML = '<div class="empty">LOADING...</div>';
   let rows;
   try {
-    rows = await sbReq('re_editors?select=*&order=requested_at.asc');
+    const snap = await _db.collection('re_editors').orderBy('requested_at').get();
+    rows = snap.docs.map(d => Object.assign({ user_id: d.id }, d.data()));
   } catch (e) {
     wrap.innerHTML = `<div class="empty" style="color:var(--redtxt);">FAILED TO LOAD — ${esc(e.message)}</div>`;
     return;
@@ -152,14 +153,14 @@ async function renderAdminPanel() {
 }
 
 async function adminSetApproved(userId, approved) {
-  try { await sbReq('re_editors?user_id=eq.' + userId, { method: 'PATCH', body: { approved } }); }
+  try { await _db.collection('re_editors').doc(userId).update({ approved }); }
   catch (e) { alert('FAILED — ' + e.message); }
   renderAdminPanel();
 }
 
 async function adminRemove(userId) {
   if (!confirm('REJECT AND REMOVE THIS REQUEST?')) return;
-  try { await sbReq('re_editors?user_id=eq.' + userId, { method: 'DELETE' }); }
+  try { await _db.collection('re_editors').doc(userId).delete(); }
   catch (e) { alert('FAILED — ' + e.message); }
   renderAdminPanel();
 }
@@ -235,7 +236,8 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 });
 
 (async () => {
-  loadSession();              // restore editor login (if any)
+  initFirebase();
+  await initAuthState();      // restore editor login (if any)
   updateAuthUI();
   await loadState();          // cache paints instantly, then DB (if configured)
   updateAuthUI();             // approval flags may have changed server-side

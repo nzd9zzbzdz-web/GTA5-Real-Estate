@@ -1,19 +1,26 @@
 // ============================================================
 // config.js — shared database connection (optional).
 //
-// To share the map with other players, fill in BOTH values from
-// your Supabase dashboard:
-//   Settings → API → Project URL          → SB_URL
-//   Settings → API → "anon public" key    → SB_ANON_KEY
-// ...and run supabase_re_setup.sql once in the SQL Editor first.
+// To share the map with other players, create a Firebase project
+// (console.firebase.google.com), add a Web app to it, and paste
+// the firebaseConfig object it gives you below. Full walkthrough
+// in the README.
 //
-// The anon public key is DESIGNED to be visible in a browser app —
-// it is NOT the service_role secret. Never put the service_role
-// key here.
+// These values are DESIGNED to be visible in a browser app — the
+// security lives in firestore.rules, not in hiding this config.
 //
-// Leave both empty ('') and the app runs in local-only mode
-// (data stays in this browser's localStorage).
+// Leave it null and the app runs in local-only mode (data stays
+// in this browser's localStorage).
 // ============================================================
 
-const SB_URL = 'https://wvwxmsivdecfavxdadgo.supabase.co';
-const SB_ANON_KEY = 'sb_publishable_FmWlFyKw7d1AELizMcFh4A_5OrcIzgP';
+const FIREBASE_CONFIG = null;
+
+// Example of what it looks like filled in:
+// const FIREBASE_CONFIG = {
+//   apiKey: "AIzaSy...",
+//   authDomain: "your-project.firebaseapp.com",
+//   projectId: "your-project",
+//   storageBucket: "your-project.firebasestorage.app",
+//   messagingSenderId: "1234567890",
+//   appId: "1:1234567890:web:abc123"
+// };

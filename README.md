@@ -1,31 +1,33 @@
 # Greyhaven Real Estate App
 
 A player-run real estate map for the Greyhaven GTA5 FiveM server. Pure
-static web app — no build step, no login system. Just open `index.html` in a
-browser (double-click it).
+static web app — no build step. Just open `index.html` in a browser
+(double-click it), or host it anywhere static (e.g. Vercel).
 
 ## Two modes (picked automatically from `js/config.js`)
 
 **LOCAL (default)** — config left empty. Data lives in your browser's
 localStorage only. Share via EXPORT/IMPORT JSON files.
 
-**SHARED** — config filled in. The app reads/writes two tables in a Supabase
-project, so everyone with a copy of the app sees and edits the same map. It
-can safely share a Supabase project with other apps — it only ever touches
-its own two tables.
+**SHARED** — config filled in. The app reads/writes Firestore collections
+in a Firebase project, so everyone with the app sees the same map. Anyone
+can view; editing requires an approved editor account (see below).
 
 ## Turning on shared mode (one-time, ~5 minutes)
 
-1. Open your Supabase dashboard → your project → **SQL Editor** → paste the
-   contents of `supabase_re_setup.sql` → Run.
-   (It only adds `re_properties` and `re_zones`; nothing else in the project
-   is touched.)
-2. **Settings → API** → copy the **Project URL** and the **anon public** key
-   (NOT the service_role secret).
-3. Open `js/config.js` and paste them into `SB_URL` and `SB_ANON_KEY`.
-4. Open `index.html` — the top-right badge should read **SHARED DB — CONNECTED**.
-5. Zip this folder and send it to your friends. They just open `index.html`
-   — same map, live.
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+   → **Add project** (any name; Google Analytics can stay off).
+2. **Build → Firestore Database → Create database** → production mode →
+   pick a region near you.
+3. Firestore → **Rules** tab → replace everything with the contents of
+   `firestore.rules` → **Publish**.
+4. **Build → Authentication → Get started** → Sign-in method →
+   **Email/Password** → Enable → Save. (Accounts are usernames in the app;
+   the email format is only used internally — nothing is ever sent.)
+5. Project settings (gear icon) → **General** → Your apps → Web (`</>`) →
+   register the app → copy the `firebaseConfig` object into
+   `js/config.js` as `FIREBASE_CONFIG`.
+6. Open the app — the top-right badge should read **SHARED DB — CONNECTED**.
 
 Notes on shared mode:
 - Changes from other players appear on REFRESH and auto-refresh (every 60s).
@@ -34,22 +36,8 @@ Notes on shared mode:
 
 ## Editor roles (viewers vs editors)
 
-Out of the box, shared mode lets **anyone** with the app edit the map. To
-restrict editing to approved people (everyone else can still view, search
-and interact), turn on editor roles:
-
-1. **SQL Editor** → paste the contents of `supabase_auth_setup.sql` → Run.
-   From now on the database rejects writes from anyone who isn't an
-   approved editor.
-2. **Authentication → Sign In / Providers**: keep "Allow new users to sign
-   up" **ON**, and under the Email provider turn "Confirm email" **OFF**
-   (accounts are username-based — there is no real inbox to confirm).
-3. **Bootstrap the first admin (yourself):** in the app, EDITOR LOGIN →
-   REQUEST ACCESS → pick a username + password. Then in the dashboard,
-   **Table Editor → re_editors** → your row → set `approved` and `admin`
-   to true.
-
-How it works from then on — no emails anywhere:
+Anyone with the URL can view, search and interact. Editing works like this
+— no emails anywhere:
 
 - Anyone can hit **EDITOR LOGIN → REQUEST ACCESS** and pick a username +
   password. Their account starts **PENDING** (view-only).
@@ -57,7 +45,12 @@ How it works from then on — no emails anywhere:
   REJECTs, or later REVOKEs accounts. Approval kicks in on the editor's
   next refresh (or within the 60s auto-refresh).
 - Editing buttons (add / edit / draw / import) only appear for approved
-  editors — and the database enforces it server-side regardless.
+  editors — and Firestore's rules enforce it server-side regardless.
+
+**Bootstrap the first admin (yourself, one time):** request access in the
+app, then in the Firebase console → **Firestore Database → re_editors** →
+your document → set `approved` = true and `admin` = true. All later
+approvals happen in the app.
 
 Keep occasional EXPORTs as backups anyway — any approved editor can still
 IMPORT/replace the whole map.
@@ -81,14 +74,14 @@ IMPORT/replace the whole map.
 
 ```
 ├── index.html              # the whole app — open this
-├── supabase_re_setup.sql   # run once in your Supabase SQL editor (shared mode)
-├── supabase_auth_setup.sql # optional: lock editing to editor accounts
+├── firestore.rules         # paste into Firebase console → Firestore → Rules
 ├── css/style.css           # dark terminal theme, gold accent
-├── js/config.js            # paste Supabase URL + anon key here (or leave empty)
-├── js/store.js             # data layer: Supabase REST or localStorage
+├── js/config.js            # paste your Firebase web config here (or leave null)
+├── js/store.js             # data layer: Firestore or localStorage
 ├── js/map.js               # Leaflet map (CRS.Simple), pins, zones
 ├── js/app.js               # tabs, stats, listings table, auto-refresh
 └── img/gta5-map.jpg        # the GTA5 satellite map
 ```
 
-Internet is needed for the Leaflet CDN, and for the database in shared mode.
+Internet is needed for the Leaflet + Firebase CDNs, and for the database in
+shared mode.
