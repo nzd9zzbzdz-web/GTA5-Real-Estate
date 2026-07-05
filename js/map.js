@@ -255,13 +255,13 @@ function renderFilterChips() {
   const sBar = document.getElementById('status-filters');
   sBar.innerHTML = STATUSES.map(s => {
     const off = _hiddenStatuses.has(s.key);
-    return `<span onclick="toggleStatusFilter('${s.key}')" class="tag" style="cursor:pointer;border-color:${s.color};color:${off ? 'var(--text3)' : s.color};opacity:${off ? .45 : 1};">&#9632; ${esc(s.key.toUpperCase())}</span>`;
+    return `<span onclick="toggleStatusFilter('${s.key}')" class="tag chip${off ? ' off' : ''}" style="border-color:${s.color};color:${s.color};">&#9632; ${esc(s.key.toUpperCase())}</span>`;
   }).join('');
   const tBar = document.getElementById('type-filters');
   const usedTypes = [...new Set(state.properties.map(p => p.type).filter(Boolean))];
   tBar.innerHTML = usedTypes.map(t => {
     const off = _hiddenTypes.has(t);
-    return `<span onclick="toggleTypeFilter('${esc(t)}')" class="tag" style="cursor:pointer;opacity:${off ? .45 : 1};color:${off ? 'var(--text3)' : 'var(--text)'};">${typeGlyph(t)} ${esc(t.toUpperCase())}</span>`;
+    return `<span onclick="toggleTypeFilter('${esc(t)}')" class="tag chip${off ? ' off' : ''}">${typeGlyph(t)} ${esc(t.toUpperCase())}</span>`;
   }).join('');
 }
 

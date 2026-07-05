@@ -214,6 +214,27 @@ body {
 .tag:hover { background: var(--glass2); transform: translateY(-1px); }
 .empty { color: var(--text3); font-size: 12px; padding: 2rem; text-align: center; letter-spacing: 1px; }
 
+/* FILTER CHIPS (status/type toggles above the map) */
+.chip {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  padding: 5px 13px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+  transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease, filter .2s ease;
+}
+.chip:hover { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 4px 12px rgba(0, 0, 0, .35); }
+.chip:active { transform: scale(.95); }
+.chip.off { opacity: .38; filter: grayscale(.5); }
+
 /* STATS */
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.25rem; }
 .stat-card {
@@ -347,6 +368,25 @@ img.list-thumb:hover { transform: scale(1.06); border-color: rgba(232, 193, 90, 
 
 /* MAP */
 #map-canvas { border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+
+/* Leaflet zoom controls — glass */
+.leaflet-touch .leaflet-bar, .leaflet-bar { border: 1px solid var(--gbrd2) !important; border-radius: 12px !important; overflow: hidden; box-shadow: var(--shadow) !important; }
+.leaflet-bar a {
+  background: rgba(24, 21, 14, .85) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--gbrd) !important;
+  width: 34px !important;
+  height: 34px !important;
+  line-height: 33px !important;
+  font-size: 16px !important;
+  font-family: var(--font) !important;
+  transition: background .15s ease, color .15s ease;
+}
+.leaflet-bar a:last-child { border-bottom: none !important; }
+.leaflet-bar a:hover { background: rgba(255, 255, 255, .12) !important; color: var(--cyan) !important; }
+.leaflet-bar a.leaflet-disabled { color: var(--text3) !important; background: rgba(24, 21, 14, .6) !important; }
 
 /* Leaflet popups restyled to match the glass theme */
 .leaflet-popup-content-wrapper {

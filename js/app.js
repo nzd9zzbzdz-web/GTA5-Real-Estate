@@ -238,7 +238,7 @@ function renderListings() {
 // ---------- UI polish ----------
 // Material-style ripple radiating from the click point.
 document.addEventListener('pointerdown', e => {
-  const el = e.target.closest('.btn, .nav-tab, .stat-card, .modal-close');
+  const el = e.target.closest('.btn, .nav-tab, .stat-card, .modal-close, .chip');
   if (!el || el.disabled) return;
   const rect = el.getBoundingClientRect();
   const size = Math.max(rect.width, rect.height) * 2.2;
