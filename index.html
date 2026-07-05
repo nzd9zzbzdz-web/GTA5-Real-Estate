@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Greyhaven Real Estate</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div>
+      <div class="brand">&#9632; GREYHAVEN REAL ESTATE</div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tab-map" onclick="showPage('map')">&#9632; MAP</button>
+      <button class="nav-tab" id="tab-listings" onclick="showPage('listings')">&#9632; LISTINGS</button>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="brand-sub" id="sync-badge" title="Shared database status. Configure js/config.js to share the map with other players.">LOCAL DATA — NO SERVER</span>
+    <button class="btn btn-sm" onclick="manualRefresh()">REFRESH</button>
+    <button class="btn btn-sm" onclick="exportData()">EXPORT</button>
+    <button class="btn btn-sm" onclick="document.getElementById('import-file').click()">IMPORT</button>
+    <input type="file" id="import-file" accept=".json,application/json" style="display:none;" onchange="importData(this)">
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- MAP PAGE -->
+  <div id="page-map" class="page active">
+    <div class="page-header">
+      <div class="page-title"><span>//</span> PROPERTY MAP</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span id="map-hint" style="color:var(--text3);font-size:10px;letter-spacing:1px;"></span>
+        <span id="map-draw-actions" style="display:none;gap:6px;">
+          <button class="btn btn-sm btn-success" onclick="finishDraw()">FINISH</button>
+        </span>
+        <button class="btn btn-sm" id="map-draw-btn" onclick="toggleDrawMode()">+ DRAW ZONE</button>
+        <button class="btn btn-sm btn-success" id="map-place-btn" onclick="toggleAddProperty()">+ ADD PROPERTY</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input type="text" id="map-search-input" class="map-search-input" style="flex:1;" autocomplete="off"
+             placeholder="SEARCH BY NAME, OWNER, TYPE..." oninput="mapSearchInput()">
+      <button class="btn btn-sm" id="map-search-clear" style="display:none;" onclick="clearMapSearch()">CLEAR</button>
+    </div>
+    <div id="status-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+    <div id="type-filters" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+    <div id="map-canvas" style="width:100%;height:72vh;background:var(--bg3);border:1px solid var(--border2);position:relative;z-index:0;"></div>
+    <div id="map-legend" class="map-legend"></div>
+  </div>
+
+  <!-- LISTINGS PAGE -->
+  <div id="page-listings" class="page">
+    <div class="page-header">
+      <div class="page-title"><span>//</span> LISTINGS</div>
+    </div>
+    <div class="stats-row" id="stats-row"></div>
+    <div class="search-bar">
+      <input type="text" id="list-search-input" placeholder="FILTER BY NAME, OWNER, TYPE, STATUS..." oninput="renderListings()">
+    </div>
+    <div id="listings-table-wrap"></div>
+  </div>
+
+</div>
+
+<!-- PROPERTY MODAL -->
+<div class="modal-overlay" id="modal-property">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="property-modal-title">NEW PROPERTY</div>
+      <button class="modal-close" onclick="closeModal('modal-property')">&#10005;</button>
+    </div>
+    <input type="hidden" id="pr-edit-id">
+    <input type="hidden" id="pr-x">
+    <input type="hidden" id="pr-y">
+    <div class="modal-grid">
+      <div><label>PROPERTY NAME / ADDRESS *</label><input type="text" id="pr-name" placeholder="e.g. 3671 Whispymound Drive"></div>
+      <div><label>TYPE</label>
+        <select id="pr-type"><option>House</option><option>Apartment</option><option>Mansion</option><option>Business</option><option>Warehouse</option><option>Garage</option><option>Office</option><option>Hotel</option><option>Land</option><option>Other</option></select>
+      </div>
+      <div><label>STATUS</label>
+        <select id="pr-status"><option>For Sale</option><option>For Rent</option><option>Sold</option><option>Owned</option><option>Rented</option><option>Off Market</option></select>
+      </div>
+      <div><label>PRICE ($)</label><input type="text" id="pr-price" placeholder="e.g. 1,250,000"></div>
+      <div><label>OWNER / TENANT</label><input type="text" id="pr-owner" placeholder="Character name..."></div>
+      <div><label>GARAGE SPACES</label><input type="text" id="pr-garage" placeholder="e.g. 4"></div>
+    </div>
+    <label>DESCRIPTION / INTERIOR NOTES</label><textarea id="pr-desc" placeholder="Interior type, stash size, view, selling points..."></textarea>
+    <label>PHOTO (screenshot)</label>
+    <input type="file" id="pr-photo-file" accept="image/*" onchange="onPhotoPicked(this)">
+    <div id="pr-photo-preview"></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-danger" id="pr-delete-btn" style="margin-right:auto;display:none;" onclick="deletePropertyFromModal()">DELETE</button>
+      <button class="btn btn-sm" onclick="closeModal('modal-property')">CANCEL</button>
+      <button class="btn btn-sm btn-success" id="pr-save-btn" onclick="saveProperty()">CREATE LISTING</button>
+    </div>
+    <div id="pr-err" style="color:var(--redtxt);font-size:11px;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<!-- ZONE MODAL -->
+<div class="modal-overlay" id="modal-zone">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title" id="zone-modal-title">NEW NEIGHBORHOOD ZONE</div>
+      <button class="modal-close" onclick="closeModal('modal-zone')">&#10005;</button>
+    </div>
+    <input type="hidden" id="zn-edit-id">
+    <input type="hidden" id="zn-coords">
+    <input type="hidden" id="zn-color">
+    <label>ZONE NAME *</label><input type="text" id="zn-name" placeholder="e.g. Vinewood Hills">
+    <label>NOTE (optional)</label><input type="text" id="zn-note" placeholder="e.g. High end — $2M and up">
+    <label>ZONE COLOR</label>
+    <div id="zn-color-picker" class="pin-picker"></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm btn-danger" id="zn-delete-btn" style="margin-right:auto;display:none;" onclick="deleteZoneFromModal()">DELETE</button>
+      <button class="btn btn-sm" onclick="closeModal('modal-zone')">CANCEL</button>
+      <button class="btn btn-sm btn-success" onclick="saveZone()">SAVE ZONE</button>
+    </div>
+    <div id="zn-err" style="color:var(--redtxt);font-size:11px;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<!-- PHOTO ZOOM -->
+<div class="zoom-overlay" id="zoom-overlay" onclick="this.classList.remove('open')">
+  <img id="zoom-img" src="" alt="">
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="js/config.js"></script>
+<script src="js/store.js"></script>
+<script src="js/map.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
