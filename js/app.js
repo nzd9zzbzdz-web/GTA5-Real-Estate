@@ -206,6 +206,40 @@ function cardSortChanged(val) {
   renderListings();
 }
 
+// Full listing detail modal — everything about one property.
+function openListing(id) {
+  const p = state.properties.find(x => x.id === id); if (!p) return;
+  const photos = propPhotos(p);
+  const sc = statusColor(p.status);
+  const rent = p.status === 'For Rent' || p.status === 'Rented';
+  const facts = [
+    ['TYPE', p.type || 'Other'],
+    ['GARAGE', p.garage || '—'],
+    ['OWNER / TENANT', p.owner || '—'],
+    ['UPDATED', fmtDate(p.updated_at)],
+    ['LISTED', fmtDate(p.created_at)]
+  ].map(([k, val]) => `<div><div class="detail-k">${k}</div><div class="detail-v">${esc(val)}</div></div>`).join('')
+    + (p.coords ? `<div><div class="detail-k">IN-GAME COORDS</div><div class="detail-v">${esc(p.coords)}
+        <button class="btn btn-sm" style="padding:2px 8px;font-size:9px;" onclick="copyCoords(${p.id}, this)">COPY</button></div></div>` : '');
+  document.getElementById('listing-title').textContent = String(p.name || 'LISTING').toUpperCase();
+  document.getElementById('listing-detail').innerHTML = `
+    ${photos.length ? `<div class="detail-cover" title="View photos" onclick="zoomPhoto(${p.id})"><img src="${photos[0]}" alt=""></div>` : ''}
+    ${photos.length > 1 ? `<div class="detail-thumbs">${photos.map((ph, i) =>
+      `<img src="${ph}" alt="" onclick="zoomPhoto(${p.id}, ${i})">`).join('')}</div>` : ''}
+    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;">
+      <span class="status-badge" style="border-color:${sc};color:${sc};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span>
+      <span class="prop-card-price">${fmtMoney(p.price)}${rent ? '<span> / week</span>' : ''}</span>
+    </div>
+    <div class="detail-grid">${facts}</div>
+    ${p.description ? `<div class="detail-desc">${esc(p.description)}</div>` : ''}
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal('modal-listing');goToProperty(${p.id})">&#128205; SHOW ON MAP</button>
+      ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="closeModal('modal-listing');openPropertyModal(${p.id})">EDIT</button>` : ''}
+      <button class="btn btn-sm" onclick="closeModal('modal-listing')">CLOSE</button>
+    </div>`;
+  openModal('modal-listing');
+}
+
 function cardHtml(p) {
   const photos = propPhotos(p);
   const cover = photos[0];
@@ -224,12 +258,13 @@ function cardHtml(p) {
     </div>
     <div class="prop-card-body">
       <div class="prop-card-price">${fmtMoney(p.price)}${rent ? '<span> / week</span>' : ''}</div>
-      <div class="prop-card-name">${esc(pinGlyphOf(p))} ${esc(p.name)}</div>
+      <div class="prop-card-name" title="Open full listing" onclick="openListing(${p.id})">${esc(pinGlyphOf(p))} ${esc(p.name)}</div>
       <div class="prop-card-meta">${meta}</div>
       ${p.description ? `<div class="prop-card-desc">${esc(p.description)}</div>` : ''}
       <div class="prop-card-footer">
         <span class="prop-card-date">${fmtDate(p.updated_at)}</span>
         <span style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-success" onclick="openListing(${p.id})">VIEW</button>
           <button class="btn btn-sm" onclick="goToProperty(${p.id})">&#128205; MAP</button>
           ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button>` : ''}
         </span>
@@ -247,7 +282,7 @@ function tableHtml(rows) {
       : `<span class="list-thumb list-thumb-ph">${esc(pinGlyphOf(p))}</span>`;
     return `<tr>
       <td class="name-col"><div class="name-cell">${thumb}<div class="name-text">
-        <span>${esc(p.name)}</span>
+        <span class="row-name" title="Open full listing" onclick="openListing(${p.id})">${esc(p.name)}</span>
         ${p.description ? `<div class="name-desc">${esc(p.description)}</div>` : ''}
       </div></div></td>
       <td>${esc(p.type)}</td>

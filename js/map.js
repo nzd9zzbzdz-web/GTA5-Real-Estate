@@ -154,11 +154,11 @@ function propPopupHtml(p) {
 let _zoomList = [];
 let _zoomIdx = 0;
 
-function zoomPhoto(id) {
+function zoomPhoto(id, idx) {
   const p = state.properties.find(x => x.id === id);
   _zoomList = p ? propPhotos(p) : [];
   if (!_zoomList.length) return;
-  _zoomIdx = 0;
+  _zoomIdx = Math.min(Math.max(idx || 0, 0), _zoomList.length - 1);
   renderZoom();
   document.getElementById('zoom-overlay').classList.add('open');
 }
