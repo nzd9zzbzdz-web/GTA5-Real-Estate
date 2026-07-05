@@ -268,6 +268,18 @@ tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255, 255, 255, .035); color: var(--text); }
 td.name-col { color: var(--cyan); font-weight: 600; }
 .name-cell { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+.name-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.name-desc {
+  color: var(--text3);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  max-width: 520px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .list-thumb { width: 84px; height: 56px; flex-shrink: 0; object-fit: cover; border: 1px solid var(--gbrd2); border-radius: 10px; cursor: zoom-in; transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease; }
 img.list-thumb:hover { transform: scale(1.06); border-color: rgba(232, 193, 90, .5); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); }
 .list-thumb-ph { display: flex; align-items: center; justify-content: center; background: var(--glass); font-size: 17px; cursor: default; }

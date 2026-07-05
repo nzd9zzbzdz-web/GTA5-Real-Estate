@@ -209,7 +209,10 @@ function renderListings() {
       ? `<img class="list-thumb" src="${cover}" alt="" title="View photos" onclick="zoomPhoto(${p.id})">`
       : `<span class="list-thumb list-thumb-ph">${esc(pinGlyphOf(p))}</span>`;
     return `<tr>
-      <td class="name-col"><div class="name-cell">${thumb}<span>${esc(p.name)}</span></div></td>
+      <td class="name-col"><div class="name-cell">${thumb}<div class="name-text">
+        <span>${esc(p.name)}</span>
+        ${p.description ? `<div class="name-desc">${esc(p.description)}</div>` : ''}
+      </div></div></td>
       <td>${esc(p.type)}</td>
       <td><span class="status-badge" style="border-color:${statusColor(p.status)};color:${statusColor(p.status)};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span></td>
       <td style="color:var(--cyan);">${fmtMoney(p.price)}</td>
