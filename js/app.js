@@ -335,6 +335,32 @@ function renderListings() {
     : tableHtml(rows);
 }
 
+// ---------- splash screen ----------
+// Shown on plain visits; skipped for deep links (URL hash) and for
+// anyone who ticked "don't show this again". Data loads behind it.
+function shouldShowSplash() {
+  if (location.hash) return false;
+  return localStorage.getItem('greyhave_skip_splash') !== '1';
+}
+
+function enterApp() {
+  if (document.getElementById('splash-skip-cb').checked) {
+    localStorage.setItem('greyhave_skip_splash', '1');
+  }
+  const s = document.getElementById('splash');
+  if (!s) return;
+  s.classList.add('closing');
+  setTimeout(() => s.remove(), 650);
+}
+
+function updateSplashStats() {
+  const el = document.getElementById('splash-stats');
+  if (!el || !state.properties.length) return;
+  const forSale = state.properties.filter(p => p.status === 'For Sale').length;
+  el.textContent = state.properties.length + ' PROPERTIES ON THE MAP'
+    + (forSale ? ' · ' + forSale + ' FOR SALE' : '');
+}
+
 // ---------- UI polish ----------
 // Material-style ripple radiating from the click point.
 document.addEventListener('pointerdown', e => {
@@ -358,11 +384,14 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 });
 
 (async () => {
+  const splash = document.getElementById('splash');
+  if (!shouldShowSplash() && splash) splash.remove();
   initFirebase();
   await initAuthState();      // restore editor login (if any)
   updateAuthUI();
   await loadState();          // cache paints instantly, then DB (if configured)
   updateAuthUI();             // approval flags may have changed server-side
+  updateSplashStats();
   renderStats();
   renderListings();
   showPage(location.hash === '#listings' ? 'listings' : 'map');

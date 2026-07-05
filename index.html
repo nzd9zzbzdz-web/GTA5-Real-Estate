@@ -13,6 +13,18 @@
 </head>
 <body>
 
+<!-- SPLASH / LOADING SCREEN -->
+<div id="splash" class="splash">
+  <div class="splash-inner">
+    <img src="img/logo.png" alt="" class="splash-logo" onerror="this.style.display='none'">
+    <div class="splash-brand">GREYHAVEN REAL ESTATE</div>
+    <div class="splash-tag">LOS SANTOS' FINEST PROPERTIES</div>
+    <div class="splash-stats" id="splash-stats">&nbsp;</div>
+    <button class="btn splash-enter" onclick="enterApp()">ENTER</button>
+    <label class="splash-skip"><input type="checkbox" id="splash-skip-cb"> DON'T SHOW THIS AGAIN</label>
+  </div>
+</div>
+
 <!-- TOPBAR -->
 <div class="topbar">
   <div class="topbar-left">
