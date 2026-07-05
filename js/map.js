@@ -104,11 +104,14 @@ function visibleProps() {
     (!q || [p.name, p.owner, p.description, p.type, p.status].some(f => String(f || '').toLowerCase().includes(q))));
 }
 
+// Per-property overrides beat the automatic scheme.
+function pinColorOf(p) { return p.pin_color || statusColor(p.status); }
+function pinGlyphOf(p) { return p.pin_icon || typeGlyph(p.type); }
+
 function pinIcon(p) {
-  const c = statusColor(p.status);
   return L.divIcon({
     className: 'map-pin',
-    html: `<div style="width:26px;height:26px;border-radius:50%;background:${c};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;">${typeGlyph(p.type)}</div>`,
+    html: `<div style="width:26px;height:26px;border-radius:50%;background:${pinColorOf(p)};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;">${esc(pinGlyphOf(p))}</div>`,
     iconSize: [26, 26],
     iconAnchor: [13, 13],
     popupAnchor: [0, -14]
@@ -130,10 +133,14 @@ function propPopupHtml(p) {
   const photos = propPhotos(p);
   return `<div style="min-width:190px;max-width:240px;">
     <div style="color:${c};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; ${esc(String(p.status || 'UNKNOWN').toUpperCase())}</div>
-    <div style="font-weight:bold;font-size:14px;margin-bottom:2px;">${typeGlyph(p.type)} ${esc(p.name)}</div>
+    <div style="font-weight:bold;font-size:14px;margin-bottom:2px;">${esc(pinGlyphOf(p))} ${esc(p.name)}</div>
     <div style="font-size:11px;color:#666;margin-bottom:4px;">${esc(String(p.type || 'OTHER').toUpperCase())}${p.garage ? ' &middot; GARAGE: ' + esc(p.garage) : ''}</div>
     <div style="font-size:16px;font-weight:bold;color:#8a6d1a;margin-bottom:4px;">${fmtMoney(p.price)}${p.status === 'For Rent' || p.status === 'Rented' ? ' <span style="font-size:10px;font-weight:normal;">/ week</span>' : ''}</div>
     ${p.owner ? `<div style="font-size:11px;margin-bottom:4px;">OWNER: <b>${esc(p.owner)}</b></div>` : ''}
+    ${p.coords ? `<div style="font-size:11px;margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+      <span style="color:#666;">COORDS:</span> <b>${esc(p.coords)}</b>
+      <button class="btn btn-sm" style="padding:2px 8px;font-size:9px;" onclick="copyCoords(${p.id}, this)">COPY</button>
+    </div>` : ''}
     ${p.description ? `<div style="font-size:11px;line-height:1.5;margin-bottom:4px;">${esc(p.description)}</div>` : ''}
     ${photos.length ? `<div style="position:relative;margin-bottom:4px;">
       <img src="${photos[0]}" style="width:100%;max-height:120px;object-fit:cover;cursor:zoom-in;border:1px solid #ccc;display:block;" onclick="zoomPhoto(${p.id})">
@@ -469,6 +476,52 @@ function deleteZoneFromModal() {
   if (id) deleteZone(id);
 }
 
+// ---------- coords copy ----------
+function copyCoords(id, btn) {
+  const p = state.properties.find(x => x.id === id);
+  if (!p || !p.coords) return;
+  const done = () => { if (btn) { btn.textContent = 'COPIED!'; setTimeout(() => { btn.textContent = 'COPY'; }, 1200); } };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(p.coords).then(done).catch(() => fallbackCopy(p.coords, done));
+  } else fallbackCopy(p.coords, done);
+}
+
+function fallbackCopy(text, done) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { }
+  document.body.removeChild(ta);
+  done();
+}
+
+// ---------- pin style pickers ----------
+const PIN_ICONS = ['\u{1F3E0}', '\u{1F3E2}', '\u{1F3F0}', '\u{1F3EA}', '\u{1F3ED}', '\u{1F697}', '\u{1F4BC}', '\u{1F3E8}', '\u{1F332}', '⭐', '\u{1F48E}', '\u{1F525}', '\u{1F451}', '⚓'];
+
+function renderPinColorPicker() {
+  const wrap = document.getElementById('pr-pin-colors');
+  const cur = document.getElementById('pr-pin-color').value;
+  wrap.innerHTML =
+    `<div class="pin-swatch${!cur ? ' on' : ''}" title="Auto — color follows status" onclick="selectPinColor('')"><div class="pin-swatch-dot" style="background:conic-gradient(#2ecc71 0 25%, #f1c40f 0 50%, #e74c3c 0 75%, #3498db 0);"></div></div>`
+    + ZONE_PALETTE.map(c =>
+      `<div class="pin-swatch${cur === c ? ' on' : ''}" onclick="selectPinColor('${c}')"><div class="pin-swatch-dot" style="background:${c};"></div></div>`).join('');
+}
+
+function selectPinColor(c) {
+  document.getElementById('pr-pin-color').value = c;
+  renderPinColorPicker();
+}
+
+function renderPinIconPicker() {
+  document.getElementById('pr-pin-icons').innerHTML =
+    `<button type="button" class="btn btn-sm" style="padding:3px 8px;font-size:10px;" onclick="setPinIcon('')">AUTO</button>`
+    + PIN_ICONS.map(i =>
+      `<button type="button" class="btn btn-sm" style="padding:3px 8px;" onclick="setPinIcon('${i}')">${i}</button>`).join('');
+}
+
+function setPinIcon(i) { document.getElementById('pr-pin-icon').value = i; }
+
 // ---------- property modal ----------
 function openPropertyModal(id, x, y, zoneId) {
   _photos = [];
@@ -489,7 +542,10 @@ function openPropertyModal(id, x, y, zoneId) {
     document.getElementById('pr-price').value = p.price ? p.price.toLocaleString('en-US') : '';
     document.getElementById('pr-owner').value = p.owner || '';
     document.getElementById('pr-garage').value = p.garage || '';
+    document.getElementById('pr-coords').value = p.coords || '';
     document.getElementById('pr-desc').value = p.description || '';
+    document.getElementById('pr-pin-color').value = p.pin_color || '';
+    document.getElementById('pr-pin-icon').value = p.pin_icon || '';
     _photos = propPhotos(p).slice();
   } else {
     document.getElementById('property-modal-title').textContent = 'NEW PROPERTY';
@@ -505,9 +561,14 @@ function openPropertyModal(id, x, y, zoneId) {
     document.getElementById('pr-price').value = '';
     document.getElementById('pr-owner').value = '';
     document.getElementById('pr-garage').value = '';
+    document.getElementById('pr-coords').value = '';
     document.getElementById('pr-desc').value = '';
+    document.getElementById('pr-pin-color').value = '';
+    document.getElementById('pr-pin-icon').value = '';
   }
   if (_map) _map.closePopup();
+  renderPinColorPicker();
+  renderPinIconPicker();
   renderPhotoPreview();
   openModal('modal-property');
 }
@@ -561,7 +622,10 @@ async function saveProperty() {
     price: parseMoney(document.getElementById('pr-price').value),
     owner: v('pr-owner'),
     garage: v('pr-garage'),
+    coords: v('pr-coords'),
     description: v('pr-desc'),
+    pin_color: document.getElementById('pr-pin-color').value || null,
+    pin_icon: v('pr-pin-icon') || null,
     photos: _photos.slice(),
     photo: null,                 // legacy single-photo field, superseded
     x: Number(document.getElementById('pr-x').value),

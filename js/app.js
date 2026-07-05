@@ -204,7 +204,7 @@ function renderListings() {
   });
   const arrow = k => _sortKey === k ? (_sortDir === 1 ? ' ▲' : ' ▼') : '';
   const body = rows.map(p => `<tr>
-      <td class="name-col">${typeGlyph(p.type)} ${esc(p.name)}</td>
+      <td class="name-col">${esc(pinGlyphOf(p))} ${esc(p.name)}</td>
       <td>${esc(p.type)}</td>
       <td><span class="status-badge" style="border-color:${statusColor(p.status)};color:${statusColor(p.status)};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span></td>
       <td style="color:var(--cyan);">${fmtMoney(p.price)}</td>

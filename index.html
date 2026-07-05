@@ -95,8 +95,22 @@
       <div><label>PRICE ($)</label><input type="text" id="pr-price" placeholder="e.g. 1,250,000"></div>
       <div><label>OWNER / TENANT</label><input type="text" id="pr-owner" placeholder="Character name..."></div>
       <div><label>GARAGE SPACES</label><input type="text" id="pr-garage" placeholder="e.g. 4"></div>
+      <div><label>IN-GAME COORDS (optional)</label><input type="text" id="pr-coords" placeholder="e.g. -174.3, 497.9, 137.7"></div>
     </div>
     <label>DESCRIPTION / INTERIOR NOTES</label><textarea id="pr-desc" placeholder="Interior type, stash size, view, selling points..."></textarea>
+    <label>PIN STYLE (optional — normally color = status, icon = type)</label>
+    <input type="hidden" id="pr-pin-color">
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-bottom:4px;">
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:4px;">PIN COLOR</div>
+        <div id="pr-pin-colors" class="pin-picker" style="grid-template-columns:repeat(auto-fill, 34px);gap:5px;"></div>
+      </div>
+      <div style="flex:1;min-width:220px;">
+        <div style="font-size:10px;color:var(--text3);letter-spacing:1px;margin-bottom:4px;">PIN ICON</div>
+        <input type="text" id="pr-pin-icon" maxlength="4" placeholder="AUTO" style="width:80px;text-align:center;">
+        <div id="pr-pin-icons" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;"></div>
+      </div>
+    </div>
     <label>PHOTOS (screenshots — up to 6, first is the cover)</label>
     <input type="file" id="pr-photo-file" accept="image/*" multiple onchange="onPhotoPicked(this)">
     <div id="pr-photo-preview"></div>
