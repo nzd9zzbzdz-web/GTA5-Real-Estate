@@ -196,9 +196,10 @@ function paintZones() {
     .filter(z => Array.isArray(z.coordinates) && z.coordinates.length >= 3 &&
       z.coordinates.every(c => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1])))
     .forEach(z => {
-      // A zone with a linked listing wears the listing's status color.
+      // A zone with a linked listing wears the listing's color —
+      // custom pin color if set, otherwise its status color.
       const linked = zoneListing(z.id);
-      const col = linked ? statusColor(linked.status) : (z.color || ZONE_PALETTE[0]);
+      const col = linked ? pinColorOf(linked) : (z.color || ZONE_PALETTE[0]);
       const baseFill = linked ? 0.25 : 0.15;
       // Click-through while placing/drawing so the click reaches the map.
       const poly = L.polygon(z.coordinates, { color: col, weight: 2, fillColor: col, fillOpacity: baseFill, interactive: !(_placeMode || _drawMode) });
@@ -217,7 +218,7 @@ function zoneListing(zoneId) {
 
 function zonePopupHtml(z) {
   const linked = zoneListing(z.id);
-  const col = linked ? statusColor(linked.status) : (z.color || ZONE_PALETTE[0]);
+  const col = linked ? pinColorOf(linked) : (z.color || ZONE_PALETTE[0]);
   return `<div style="min-width:170px;">
     <div style="color:${col};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; ${linked ? 'LISTED ZONE' : 'NEIGHBORHOOD'}</div>
     <div style="font-weight:bold;font-size:13px;">${esc(z.name)}</div>
