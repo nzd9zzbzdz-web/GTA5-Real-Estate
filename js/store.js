@@ -26,7 +26,10 @@ function pick(o, cols) { const r = {}; cols.forEach(k => { if (o[k] !== undefine
 // ---------- Supabase REST (PostgREST) ----------
 async function sbReq(path, opts = {}) {
   const method = opts.method || 'GET';
-  const headers = { apikey: SB_ANON_KEY, Authorization: 'Bearer ' + SB_ANON_KEY };
+  // New-style keys (sb_publishable_...) go in apikey only; the old
+  // JWT-style anon keys also need the Authorization header.
+  const headers = { apikey: SB_ANON_KEY };
+  if (!SB_ANON_KEY.startsWith('sb_')) headers.Authorization = 'Bearer ' + SB_ANON_KEY;
   if (method !== 'GET') { headers['Content-Type'] = 'application/json'; headers.Prefer = 'return=minimal'; }
   const res = await fetch(SB_URL.replace(/\/+$/, '') + '/rest/v1/' + path, {
     method, headers,

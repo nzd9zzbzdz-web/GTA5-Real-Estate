@@ -15,5 +15,5 @@
 // (data stays in this browser's localStorage).
 // ============================================================
 
-const SB_URL = '';
-const SB_ANON_KEY = '';
+const SB_URL = 'https://wvwxmsivdecfavxdadgo.supabase.co';
+const SB_ANON_KEY = 'sb_publishable_FmWlFyKw7d1AELizMcFh4A_5OrcIzgP';
