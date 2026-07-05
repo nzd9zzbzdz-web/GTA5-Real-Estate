@@ -76,14 +76,12 @@ body {
 .splash-logo {
   width: min(240px, 55vw);
   margin-bottom: 4px;
-  /* recolor the b/w emblem to the app's gold */
-  filter: sepia(1) saturate(1.9) hue-rotate(-10deg) brightness(1.02)
-          drop-shadow(0 0 34px rgba(232, 193, 90, .28));
+  /* the PNG is pre-tinted gold; CSS just adds the breathing glow */
   animation: logoGlow 3.5s ease-in-out infinite;
 }
 @keyframes logoGlow {
-  0%, 100% { filter: sepia(1) saturate(1.9) hue-rotate(-10deg) brightness(1.02) drop-shadow(0 0 26px rgba(232, 193, 90, .2)); }
-  50%      { filter: sepia(1) saturate(1.9) hue-rotate(-10deg) brightness(1.08) drop-shadow(0 0 44px rgba(232, 193, 90, .38)); }
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 26px rgba(232, 193, 90, .22)); }
+  50%      { filter: brightness(1.07) drop-shadow(0 0 46px rgba(232, 193, 90, .4)); }
 }
 .splash-brand {
   font-size: clamp(18px, 4vw, 26px);
