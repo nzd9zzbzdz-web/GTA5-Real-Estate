@@ -184,24 +184,61 @@ function filterListings(status) {
   renderListings();
 }
 
-// ---------- listings table ----------
+// ---------- listings (cards + table views) ----------
+let _listView = localStorage.getItem('greyhave_realestate_view') || 'cards';
+
+function setListView(view) {
+  _listView = view;
+  localStorage.setItem('greyhave_realestate_view', view);
+  renderListings();
+}
+
 function sortListings(key) {
   if (_sortKey === key) _sortDir = -_sortDir;
   else { _sortKey = key; _sortDir = key === 'name' || key === 'type' || key === 'status' ? 1 : -1; }
   renderListings();
 }
 
-function renderListings() {
-  renderStats();
-  const q = v('list-search-input').toLowerCase();
-  let rows = state.properties.filter(p =>
-    !q || [p.name, p.owner, p.type, p.status, p.description].some(f => String(f || '').toLowerCase().includes(q)));
-  rows.sort((a, b) => {
-    let x = a[_sortKey], y = b[_sortKey];
-    if (_sortKey === 'price') { x = Number(x) || 0; y = Number(y) || 0; }
-    else { x = String(x || '').toLowerCase(); y = String(y || '').toLowerCase(); }
-    return (x < y ? -1 : x > y ? 1 : 0) * _sortDir;
-  });
+function cardSortChanged(val) {
+  const i = val.lastIndexOf('_');
+  _sortKey = val.slice(0, i);
+  _sortDir = val.slice(i + 1) === 'asc' ? 1 : -1;
+  renderListings();
+}
+
+function cardHtml(p) {
+  const photos = propPhotos(p);
+  const cover = photos[0];
+  const sc = statusColor(p.status);
+  const rent = p.status === 'For Rent' || p.status === 'Rented';
+  const meta = [
+    String(p.type || 'OTHER').toUpperCase(),
+    p.garage ? 'GARAGE ' + p.garage : '',
+    p.owner ? 'OWNER: ' + p.owner.toUpperCase() : ''
+  ].filter(Boolean).join(' &middot; ');
+  return `<div class="prop-card">
+    <div class="prop-card-media"${cover ? ` onclick="zoomPhoto(${p.id})" title="View photos"` : ''}>
+      ${cover ? `<img src="${cover}" alt="" loading="lazy">` : `<div class="prop-card-ph">${esc(pinGlyphOf(p))}</div>`}
+      <span class="status-badge prop-card-status" style="border-color:${sc};color:${sc};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span>
+      ${photos.length > 1 ? `<span class="prop-card-count">&#128247; ${photos.length}</span>` : ''}
+    </div>
+    <div class="prop-card-body">
+      <div class="prop-card-price">${fmtMoney(p.price)}${rent ? '<span> / week</span>' : ''}</div>
+      <div class="prop-card-name">${esc(pinGlyphOf(p))} ${esc(p.name)}</div>
+      <div class="prop-card-meta">${meta}</div>
+      ${p.description ? `<div class="prop-card-desc">${esc(p.description)}</div>` : ''}
+      <div class="prop-card-footer">
+        <span class="prop-card-date">${fmtDate(p.updated_at)}</span>
+        <span style="display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="goToProperty(${p.id})">&#128205; MAP</button>
+          ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button>` : ''}
+        </span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function tableHtml(rows) {
   const arrow = k => _sortKey === k ? (_sortDir === 1 ? ' ▲' : ' ▼') : '';
   const body = rows.map(p => {
     const cover = propPhotos(p)[0];
@@ -224,18 +261,43 @@ function renderListings() {
       </td>
     </tr>`;
   }).join('');
-  document.getElementById('listings-table-wrap').innerHTML = rows.length
-    ? `<div class="card" style="padding:0;"><table>
-        <thead><tr>
-          <th style="cursor:pointer;" onclick="sortListings('name')">PROPERTY${arrow('name')}</th>
-          <th style="cursor:pointer;" onclick="sortListings('type')">TYPE${arrow('type')}</th>
-          <th style="cursor:pointer;" onclick="sortListings('status')">STATUS${arrow('status')}</th>
-          <th style="cursor:pointer;" onclick="sortListings('price')">PRICE${arrow('price')}</th>
-          <th>OWNER</th>
-          <th style="cursor:pointer;" onclick="sortListings('updated_at')">UPDATED${arrow('updated_at')}</th>
-          <th></th>
-        </tr></thead><tbody>${body}</tbody></table></div>`
-    : `<div class="empty">${state.properties.length ? 'NO LISTINGS MATCH THAT SEARCH' : (isEditor() ? 'NO PROPERTIES YET — GO TO THE MAP AND HIT + ADD PROPERTY' : 'NO PROPERTIES LISTED YET')}</div>`;
+  return `<div class="card" style="padding:0;"><table>
+    <thead><tr>
+      <th style="cursor:pointer;" onclick="sortListings('name')">PROPERTY${arrow('name')}</th>
+      <th style="cursor:pointer;" onclick="sortListings('type')">TYPE${arrow('type')}</th>
+      <th style="cursor:pointer;" onclick="sortListings('status')">STATUS${arrow('status')}</th>
+      <th style="cursor:pointer;" onclick="sortListings('price')">PRICE${arrow('price')}</th>
+      <th>OWNER</th>
+      <th style="cursor:pointer;" onclick="sortListings('updated_at')">UPDATED${arrow('updated_at')}</th>
+      <th></th>
+    </tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function renderListings() {
+  renderStats();
+  document.getElementById('view-cards').classList.toggle('active', _listView === 'cards');
+  document.getElementById('view-table').classList.toggle('active', _listView === 'table');
+  const sortSel = document.getElementById('card-sort');
+  sortSel.style.display = _listView === 'cards' ? '' : 'none';
+  const cur = _sortKey + '_' + (_sortDir === 1 ? 'asc' : 'desc');
+  if ([...sortSel.options].some(o => o.value === cur)) sortSel.value = cur;
+  const q = v('list-search-input').toLowerCase();
+  let rows = state.properties.filter(p =>
+    !q || [p.name, p.owner, p.type, p.status, p.description].some(f => String(f || '').toLowerCase().includes(q)));
+  rows.sort((a, b) => {
+    let x = a[_sortKey], y = b[_sortKey];
+    if (_sortKey === 'price') { x = Number(x) || 0; y = Number(y) || 0; }
+    else { x = String(x || '').toLowerCase(); y = String(y || '').toLowerCase(); }
+    return (x < y ? -1 : x > y ? 1 : 0) * _sortDir;
+  });
+  const wrap = document.getElementById('listings-table-wrap');
+  if (!rows.length) {
+    wrap.innerHTML = `<div class="empty">${state.properties.length ? 'NO LISTINGS MATCH THAT SEARCH' : (isEditor() ? 'NO PROPERTIES YET — GO TO THE MAP AND HIT + ADD PROPERTY' : 'NO PROPERTIES LISTED YET')}</div>`;
+    return;
+  }
+  wrap.innerHTML = _listView === 'cards'
+    ? `<div class="cards-grid">${rows.map(cardHtml).join('')}</div>`
+    : tableHtml(rows);
 }
 
 // ---------- UI polish ----------

@@ -66,10 +66,20 @@
   <div id="page-listings" class="page">
     <div class="page-header">
       <div class="page-title"><span>//</span> LISTINGS</div>
+      <div class="nav-tabs">
+        <button class="nav-tab" id="view-cards" onclick="setListView('cards')">&#9638; CARDS</button>
+        <button class="nav-tab" id="view-table" onclick="setListView('table')">&#9776; TABLE</button>
+      </div>
     </div>
     <div class="stats-row" id="stats-row"></div>
     <div class="search-bar">
       <input type="text" id="list-search-input" placeholder="FILTER BY NAME, OWNER, TYPE, STATUS..." oninput="renderListings()">
+      <select id="card-sort" onchange="cardSortChanged(this.value)">
+        <option value="updated_at_desc">NEWEST FIRST</option>
+        <option value="price_desc">PRICE: HIGH TO LOW</option>
+        <option value="price_asc">PRICE: LOW TO HIGH</option>
+        <option value="name_asc">NAME A&ndash;Z</option>
+      </select>
     </div>
     <div id="listings-table-wrap"></div>
   </div>
