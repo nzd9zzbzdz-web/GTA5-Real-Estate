@@ -189,29 +189,57 @@ function paintZones() {
     .filter(z => Array.isArray(z.coordinates) && z.coordinates.length >= 3 &&
       z.coordinates.every(c => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1])))
     .forEach(z => {
-      const col = z.color || ZONE_PALETTE[0];
+      // A zone with a linked listing wears the listing's status color.
+      const linked = zoneListing(z.id);
+      const col = linked ? statusColor(linked.status) : (z.color || ZONE_PALETTE[0]);
+      const baseFill = linked ? 0.25 : 0.15;
       // Click-through while placing/drawing so the click reaches the map.
-      const poly = L.polygon(z.coordinates, { color: col, weight: 2, fillColor: col, fillOpacity: 0.15, interactive: !(_placeMode || _drawMode) });
-      poly.on('mouseover', () => poly.setStyle({ fillOpacity: 0.3 }));
-      poly.on('mouseout', () => poly.setStyle({ fillOpacity: 0.15 }));
+      const poly = L.polygon(z.coordinates, { color: col, weight: 2, fillColor: col, fillOpacity: baseFill, interactive: !(_placeMode || _drawMode) });
+      poly.on('mouseover', () => poly.setStyle({ fillOpacity: baseFill + 0.15 }));
+      poly.on('mouseout', () => poly.setStyle({ fillOpacity: baseFill }));
       poly.addTo(_zoneLayer).bindPopup(zonePopupHtml(z));
       if (z.name) poly.bindTooltip(z.name.toUpperCase(), { permanent: true, direction: 'center', className: 'territory-label' });
       _zoneShapes[z.id] = poly;
     });
 }
 
+// The property listed on a zone, if any (link lives on the property).
+function zoneListing(zoneId) {
+  return state.properties.find(p => p.zone_id === zoneId);
+}
+
 function zonePopupHtml(z) {
-  const col = z.color || ZONE_PALETTE[0];
-  return `<div style="min-width:160px;">
-    <div style="color:${col};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; NEIGHBORHOOD</div>
+  const linked = zoneListing(z.id);
+  const col = linked ? statusColor(linked.status) : (z.color || ZONE_PALETTE[0]);
+  return `<div style="min-width:170px;">
+    <div style="color:${col};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; ${linked ? 'LISTED ZONE' : 'NEIGHBORHOOD'}</div>
     <div style="font-weight:bold;font-size:13px;">${esc(z.name)}</div>
     ${z.note ? `<div style="font-size:11px;margin-top:3px;line-height:1.5;">${esc(z.note)}</div>` : ''}
+    ${linked ? `<div style="font-size:11px;margin-top:5px;">
+      <span style="color:${statusColor(linked.status)};">&#9632; ${esc(String(linked.status || 'UNKNOWN').toUpperCase())}</span>
+      &middot; <b>${fmtMoney(linked.price)}</b>${linked.owner ? ' &middot; ' + esc(linked.owner) : ''}
+    </div>
+    <div style="margin-top:8px;"><button class="btn btn-sm" onclick="goToProperty(${linked.id})">VIEW LISTING</button></div>` : ''}
     ${isEditor() ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+      ${!linked ? `<button class="btn btn-sm btn-success" onclick="listZoneAsProperty(${z.id})">LIST AS PROPERTY</button>` : ''}
       <button class="btn btn-sm btn-warn" onclick="editZoneInfo(${z.id})">EDIT</button>
       <button class="btn btn-sm" onclick="redrawZone(${z.id})">REDRAW</button>
       <button class="btn btn-sm btn-danger" onclick="deleteZone(${z.id})">DELETE</button>
     </div>` : ''}
   </div>`;
+}
+
+// "LIST AS PROPERTY" on a zone: open the property form at the zone's
+// center, pre-filled from the zone and linked to it via zone_id.
+function listZoneAsProperty(zoneId) {
+  const z = state.zones.find(x => x.id === zoneId); if (!z) return;
+  const pts = Array.isArray(z.coordinates) ? z.coordinates : [];
+  if (pts.length < 3) return;
+  const cy = pts.reduce((s, c) => s + c[0], 0) / pts.length;
+  const cx = pts.reduce((s, c) => s + c[1], 0) / pts.length;
+  openPropertyModal(null, cx, cy, zoneId);
+  document.getElementById('pr-name').value = z.name || '';
+  document.getElementById('pr-type').value = 'Land';
 }
 
 // ---------- filter chips + legend ----------
@@ -424,7 +452,10 @@ function redrawZone(id) {
 
 async function deleteZone(id) {
   if (_map) _map.closePopup();
-  if (!confirm('DELETE THIS ZONE?')) return;
+  const linked = zoneListing(id);
+  if (!confirm(linked
+    ? 'THIS ZONE IS LISTED AS A PROPERTY.\nThe listing itself stays (as a pin) — only the drawn zone is deleted.\nDELETE THE ZONE?'
+    : 'DELETE THIS ZONE?')) return;
   try { await dbDelete('re_zones', id); }
   catch (e) { alert('DELETE FAILED — ' + e.message); return; }
   state.zones = state.zones.filter(z => z.id !== id);
@@ -439,7 +470,7 @@ function deleteZoneFromModal() {
 }
 
 // ---------- property modal ----------
-function openPropertyModal(id, x, y) {
+function openPropertyModal(id, x, y, zoneId) {
   _photos = [];
   document.getElementById('pr-err').style.display = 'none';
   document.getElementById('pr-photo-file').value = '';
@@ -451,6 +482,7 @@ function openPropertyModal(id, x, y) {
     document.getElementById('pr-edit-id').value = id;
     document.getElementById('pr-x').value = p.x;
     document.getElementById('pr-y').value = p.y;
+    document.getElementById('pr-zone-id').value = p.zone_id || '';
     document.getElementById('pr-name').value = p.name || '';
     document.getElementById('pr-type').value = p.type || 'House';
     document.getElementById('pr-status').value = p.status || 'For Sale';
@@ -466,6 +498,7 @@ function openPropertyModal(id, x, y) {
     document.getElementById('pr-edit-id').value = '';
     document.getElementById('pr-x').value = x;
     document.getElementById('pr-y').value = y;
+    document.getElementById('pr-zone-id').value = zoneId || '';
     document.getElementById('pr-name').value = '';
     document.getElementById('pr-type').value = 'House';
     document.getElementById('pr-status').value = 'For Sale';
@@ -533,6 +566,7 @@ async function saveProperty() {
     photo: null,                 // legacy single-photo field, superseded
     x: Number(document.getElementById('pr-x').value),
     y: Number(document.getElementById('pr-y').value),
+    zone_id: Number(document.getElementById('pr-zone-id').value) || null,
     updated_at: new Date().toISOString()
   };
   // Firestore documents cap at 1 MB — leave headroom for the text fields.
