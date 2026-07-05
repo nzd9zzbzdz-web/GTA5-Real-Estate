@@ -23,9 +23,12 @@
   </div>
   <div class="topbar-right">
     <span class="brand-sub" id="sync-badge" title="Shared database status. Configure js/config.js to share the map with other players.">LOCAL DATA — NO SERVER</span>
+    <span class="brand-sub" id="auth-user" style="display:none;" title="Editor account status"></span>
+    <button class="btn btn-sm" id="admin-btn" style="display:none;" onclick="openAdminPanel()">ADMIN</button>
+    <button class="btn btn-sm" id="auth-btn" style="display:none;" onclick="authButton()">EDITOR LOGIN</button>
     <button class="btn btn-sm" onclick="manualRefresh()">REFRESH</button>
     <button class="btn btn-sm" onclick="exportData()">EXPORT</button>
-    <button class="btn btn-sm" onclick="document.getElementById('import-file').click()">IMPORT</button>
+    <button class="btn btn-sm" id="import-btn" onclick="document.getElementById('import-file').click()">IMPORT</button>
     <input type="file" id="import-file" accept=".json,application/json" style="display:none;" onchange="importData(this)">
   </div>
 </div>
@@ -125,6 +128,67 @@
       <button class="btn btn-sm btn-success" onclick="saveZone()">SAVE ZONE</button>
     </div>
     <div id="zn-err" style="color:var(--redtxt);font-size:11px;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<!-- EDITOR LOGIN MODAL -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title">EDITOR LOGIN</div>
+      <button class="modal-close" onclick="closeModal('modal-login')">&#10005;</button>
+    </div>
+    <label>USERNAME</label>
+    <input type="text" id="lg-username" autocomplete="username" placeholder="your editor username">
+    <label>PASSWORD</label>
+    <input type="password" id="lg-password" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <div class="modal-footer">
+      <button class="btn btn-sm" style="margin-right:auto;" onclick="openSignupModal()">REQUEST ACCESS</button>
+      <button class="btn btn-sm" onclick="closeModal('modal-login')">CANCEL</button>
+      <button class="btn btn-sm btn-success" id="lg-submit" onclick="doLogin()">LOG IN</button>
+    </div>
+    <div id="lg-err" style="color:var(--redtxt);font-size:11px;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<!-- REQUEST ACCESS MODAL -->
+<div class="modal-overlay" id="modal-signup">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title">REQUEST EDITOR ACCESS</div>
+      <button class="modal-close" onclick="closeModal('modal-signup')">&#10005;</button>
+    </div>
+    <div style="color:var(--text3);font-size:11px;line-height:1.6;margin-bottom:8px;">
+      PICK A USERNAME AND PASSWORD. AN ADMIN HAS TO APPROVE YOUR REQUEST
+      BEFORE YOU CAN EDIT — YOU CAN KEEP BROWSING THE MAP MEANWHILE.
+    </div>
+    <label>USERNAME (3–20: LETTERS, NUMBERS, _ -)</label>
+    <input type="text" id="sg-username" autocomplete="off" placeholder="e.g. SeanRP">
+    <label>PASSWORD (MIN 6 CHARACTERS)</label>
+    <input type="password" id="sg-password" autocomplete="new-password">
+    <label>CONFIRM PASSWORD</label>
+    <input type="password" id="sg-password2" autocomplete="new-password"
+           onkeydown="if(event.key==='Enter')doSignup()">
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal('modal-signup')">CANCEL</button>
+      <button class="btn btn-sm btn-success" id="sg-submit" onclick="doSignup()">SEND REQUEST</button>
+    </div>
+    <div id="sg-err" style="color:var(--redtxt);font-size:11px;margin-top:8px;display:none;"></div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL MODAL -->
+<div class="modal-overlay" id="modal-admin">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title">EDITOR ACCESS — ADMIN</div>
+      <button class="modal-close" onclick="closeModal('modal-admin')">&#10005;</button>
+    </div>
+    <div id="admin-list" style="min-height:60px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal('modal-admin')">CLOSE</button>
+    </div>
   </div>
 </div>
 

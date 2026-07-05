@@ -17,10 +17,151 @@ function showPage(p) {
 
 // Repaint everything after any data change (save/delete/import).
 function refreshAll() {
+  updateAuthUI();
   renderStats();
   renderListings();
   if (_map) paintAll();
   else if (document.getElementById('page-map').classList.contains('active')) renderMap();
+}
+
+// ---------- auth UI ----------
+// Shows/hides everything only editors may use. The database also
+// rejects writes from non-editors, so this is convenience, not
+// the actual security boundary.
+function updateAuthUI() {
+  if (!backendOn()) return;   // local mode: no accounts, keep classic behavior
+  const on = isEditor();
+  document.getElementById('auth-btn').style.display = 'inline-block';
+  document.getElementById('auth-btn').textContent = _session ? 'LOG OUT' : 'EDITOR LOGIN';
+  document.getElementById('admin-btn').style.display = isAdmin() ? 'inline-block' : 'none';
+  const badge = document.getElementById('auth-user');
+  if (_session && _session.approved) {
+    badge.style.display = 'inline';
+    badge.style.color = 'var(--greentxt)';
+    badge.textContent = (_session.admin ? 'ADMIN: ' : 'EDITOR: ') + _session.username.toUpperCase();
+  } else if (_session) {
+    badge.style.display = 'inline';
+    badge.style.color = '#e8c15a';
+    badge.textContent = _session.username.toUpperCase() + ' — PENDING APPROVAL';
+  } else {
+    badge.style.display = 'none';
+  }
+  document.getElementById('map-place-btn').style.display = on ? '' : 'none';
+  document.getElementById('map-draw-btn').style.display = on ? '' : 'none';
+  document.getElementById('import-btn').style.display = on ? '' : 'none';
+}
+
+function authButton() {
+  if (_session) {
+    logout();
+    updateAuthUI();
+    refreshAll();     // strip EDIT buttons from table + popups
+    return;
+  }
+  document.getElementById('lg-err').style.display = 'none';
+  document.getElementById('lg-password').value = '';
+  openModal('modal-login');
+  document.getElementById('lg-username').focus();
+}
+
+async function doLogin() {
+  const err = document.getElementById('lg-err');
+  const btn = document.getElementById('lg-submit');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'LOGGING IN...';
+  try {
+    await login(v('lg-username'), document.getElementById('lg-password').value);
+  } catch (e) {
+    err.textContent = 'LOGIN FAILED — ' + e.message.toUpperCase();
+    err.style.display = 'block';
+    return;
+  } finally {
+    btn.disabled = false; btn.textContent = 'LOG IN';
+  }
+  closeModal('modal-login');
+  updateAuthUI();
+  refreshAll();
+}
+
+function openSignupModal() {
+  closeModal('modal-login');
+  document.getElementById('sg-err').style.display = 'none';
+  document.getElementById('sg-username').value = '';
+  document.getElementById('sg-password').value = '';
+  document.getElementById('sg-password2').value = '';
+  openModal('modal-signup');
+  document.getElementById('sg-username').focus();
+}
+
+async function doSignup() {
+  const err = document.getElementById('sg-err');
+  const btn = document.getElementById('sg-submit');
+  const showErr = m => { err.textContent = m; err.style.display = 'block'; };
+  err.style.display = 'none';
+  const username = v('sg-username');
+  const pw = document.getElementById('sg-password').value;
+  if (!validUsername(username)) { showErr('USERNAME MUST BE 3–20 CHARACTERS: LETTERS, NUMBERS, _ OR -'); return; }
+  if (pw.length < 6) { showErr('PASSWORD MUST BE AT LEAST 6 CHARACTERS'); return; }
+  if (pw !== document.getElementById('sg-password2').value) { showErr('PASSWORDS DO NOT MATCH'); return; }
+  btn.disabled = true; btn.textContent = 'SENDING...';
+  try {
+    await signupEditor(username, pw);
+  } catch (e) {
+    showErr('REQUEST FAILED — ' + e.message.toUpperCase());
+    return;
+  } finally {
+    btn.disabled = false; btn.textContent = 'SEND REQUEST';
+  }
+  closeModal('modal-signup');
+  updateAuthUI();
+  alert('REQUEST SENT!\nAn admin has to approve your account before you can edit.\nYou are logged in and can browse the map meanwhile.');
+}
+
+// ---------- admin panel ----------
+function openAdminPanel() {
+  openModal('modal-admin');
+  renderAdminPanel();
+}
+
+async function renderAdminPanel() {
+  const wrap = document.getElementById('admin-list');
+  wrap.innerHTML = '<div class="empty">LOADING...</div>';
+  let rows;
+  try {
+    rows = await sbReq('re_editors?select=*&order=requested_at.asc');
+  } catch (e) {
+    wrap.innerHTML = `<div class="empty" style="color:var(--redtxt);">FAILED TO LOAD — ${esc(e.message)}</div>`;
+    return;
+  }
+  if (!rows.length) { wrap.innerHTML = '<div class="empty">NO EDITOR ACCOUNTS YET</div>'; return; }
+  wrap.innerHTML = rows.map(r => {
+    const me = r.user_id === _session.user_id;
+    const status = r.approved
+      ? `<span class="tag" style="color:var(--greentxt);border-color:var(--greentxt);">${r.admin ? 'ADMIN' : 'EDITOR'}</span>`
+      : '<span class="tag" style="color:#e8c15a;border-color:#e8c15a;">PENDING</span>';
+    const actions = me
+      ? '<span style="color:var(--text3);font-size:10px;">(YOU)</span>'
+      : r.approved
+        ? `<button class="btn btn-sm btn-danger" onclick="adminSetApproved('${r.user_id}', false)">REVOKE</button>`
+        : `<button class="btn btn-sm btn-success" onclick="adminSetApproved('${r.user_id}', true)">APPROVE</button>
+           <button class="btn btn-sm btn-danger" onclick="adminRemove('${r.user_id}')">REJECT</button>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border2);">
+      <b style="flex:1;">${esc(r.username.toUpperCase())}</b>${status}${actions}
+    </div>`;
+  }).join('');
+}
+
+async function adminSetApproved(userId, approved) {
+  try { await sbReq('re_editors?user_id=eq.' + userId, { method: 'PATCH', body: { approved } }); }
+  catch (e) { alert('FAILED — ' + e.message); }
+  renderAdminPanel();
+}
+
+async function adminRemove(userId) {
+  if (!confirm('REJECT AND REMOVE THIS REQUEST?')) return;
+  try { await sbReq('re_editors?user_id=eq.' + userId, { method: 'DELETE' }); }
+  catch (e) { alert('FAILED — ' + e.message); }
+  renderAdminPanel();
 }
 
 // ---------- stats ----------
@@ -70,7 +211,7 @@ function renderListings() {
       <td style="font-size:11px;">${fmtDate(p.updated_at)}</td>
       <td style="white-space:nowrap;text-align:right;">
         <button class="btn btn-sm" onclick="goToProperty(${p.id})">&#128205; MAP</button>
-        <button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button>
+        ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button>` : ''}
       </td>
     </tr>`).join('');
   document.getElementById('listings-table-wrap').innerHTML = rows.length
@@ -84,7 +225,7 @@ function renderListings() {
           <th style="cursor:pointer;" onclick="sortListings('updated_at')">UPDATED${arrow('updated_at')}</th>
           <th></th>
         </tr></thead><tbody>${body}</tbody></table></div>`
-    : `<div class="empty">${state.properties.length ? 'NO LISTINGS MATCH THAT SEARCH' : 'NO PROPERTIES YET — GO TO THE MAP AND HIT + ADD PROPERTY'}</div>`;
+    : `<div class="empty">${state.properties.length ? 'NO LISTINGS MATCH THAT SEARCH' : (isEditor() ? 'NO PROPERTIES YET — GO TO THE MAP AND HIT + ADD PROPERTY' : 'NO PROPERTIES LISTED YET')}</div>`;
 }
 
 // ---------- boot ----------
@@ -94,7 +235,10 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 });
 
 (async () => {
+  loadSession();              // restore editor login (if any)
+  updateAuthUI();
   await loadState();          // cache paints instantly, then DB (if configured)
+  updateAuthUI();             // approval flags may have changed server-side
   renderStats();
   renderListings();
   showPage(location.hash === '#listings' ? 'listings' : 'map');

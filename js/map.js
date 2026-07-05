@@ -127,7 +127,7 @@ function propPopupHtml(p) {
     ${p.owner ? `<div style="font-size:11px;margin-bottom:4px;">OWNER: <b>${esc(p.owner)}</b></div>` : ''}
     ${p.description ? `<div style="font-size:11px;line-height:1.5;margin-bottom:4px;">${esc(p.description)}</div>` : ''}
     ${p.photo ? `<img src="${p.photo}" style="width:100%;max-height:120px;object-fit:cover;cursor:zoom-in;border:1px solid #ccc;margin-bottom:4px;" onclick="zoomPhoto(${p.id})">` : ''}
-    <div style="margin-top:6px;"><button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button></div>
+    ${isEditor() ? `<div style="margin-top:6px;"><button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button></div>` : ''}
   </div>`;
 }
 
@@ -164,11 +164,11 @@ function zonePopupHtml(z) {
     <div style="color:${col};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; NEIGHBORHOOD</div>
     <div style="font-weight:bold;font-size:13px;">${esc(z.name)}</div>
     ${z.note ? `<div style="font-size:11px;margin-top:3px;line-height:1.5;">${esc(z.note)}</div>` : ''}
-    <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
+    ${isEditor() ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">
       <button class="btn btn-sm btn-warn" onclick="editZoneInfo(${z.id})">EDIT</button>
       <button class="btn btn-sm" onclick="redrawZone(${z.id})">REDRAW</button>
       <button class="btn btn-sm btn-danger" onclick="deleteZone(${z.id})">DELETE</button>
-    </div>
+    </div>` : ''}
   </div>`;
 }
 
@@ -239,6 +239,7 @@ function goToProperty(id) {
 
 // ---------- placement ----------
 function toggleAddProperty() {
+  if (!isEditor()) return;
   _placeMode = !_placeMode;
   const btn = document.getElementById('map-place-btn');
   if (_placeMode) {
@@ -264,12 +265,13 @@ function updateMapHint() {
   const hint = document.getElementById('map-hint');
   if (_placeMode) hint.textContent = 'CLICK THE MAP WHERE THE PROPERTY IS';
   else if (_drawMode) hint.textContent = 'CLICK TO ADD CORNERS — THEN FINISH (MIN 3)';
-  else if (!state.properties.length) hint.textContent = 'NO PROPERTIES YET — HIT + ADD PROPERTY TO DROP YOUR FIRST PIN';
+  else if (!state.properties.length) hint.textContent = isEditor() ? 'NO PROPERTIES YET — HIT + ADD PROPERTY TO DROP YOUR FIRST PIN' : 'NO PROPERTIES ON THE MAP YET';
   else hint.textContent = '';
 }
 
 // ---------- zone drawing ----------
 function toggleDrawMode() {
+  if (!isEditor()) return;
   if (_drawMode) { endDraw(); return; }
   if (_placeMode) toggleAddProperty();     // can't place + draw at once
   _drawMode = true; _drawPts = [];

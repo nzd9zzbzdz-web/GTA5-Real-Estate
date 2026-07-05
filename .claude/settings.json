@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(try { \\(Get-Command vercel -ErrorAction Stop\\).Source } catch { \"vercel: not installed\" }; try { \\(Get-Command supabase -ErrorAction Stop\\).Source } catch { \"supabase: not installed\" })",
+      "PowerShell(curl.exe -s -w \"`nHTTP_STATUS:%{http_code}\" -X POST -H \"apikey: sb_publishable_FmWlFyKw7d1AELizMcFh4A_5OrcIzgP\" -H \"Content-Type: application/json\" -H \"Prefer: return=minimal\" -d \"{\\\\\"id\\\\\": 1, \\\\\"name\\\\\": \\\\\"__connection_test__\\\\\"}\" \"https://wvwxmsivdecfavxdadgo.supabase.co/rest/v1/re_properties\")",
+      "PowerShell($h = @{ apikey = 'sb_publishable_FmWlFyKw7d1AELizMcFh4A_5OrcIzgP'; Prefer = 'return=minimal' }; $body = '{\"id\": 1, \"name\": \"__connection_test__\"}'; try { Invoke-RestMethod -Method Post -Uri 'https://wvwxmsivdecfavxdadgo.supabase.co/rest/v1/re_properties' -Headers $h -ContentType 'application/json' -Body $body -ErrorAction Stop; \"INSERT OK\" } catch { \"INSERT FAILED: $\\($_.Exception.Message\\)\" }; try { Invoke-RestMethod -Method Delete -Uri 'https://wvwxmsivdecfavxdadgo.supabase.co/rest/v1/re_properties?id=eq.1' -Headers $h -ErrorAction Stop; \"DELETE OK\" } catch { \"DELETE FAILED: $\\($_.Exception.Message\\)\" })",
+      "PowerShell(try { $r = Invoke-WebRequest -Uri 'https://greyhaven-real-estate.vercel.app' -Method Get -MaximumRedirection 5 -ErrorAction Stop; \"STATUS: $\\($r.StatusCode\\)\"; if \\($r.Content -match 'GREYHAVEN REAL ESTATE'\\) { \"CONTENT: Greyhaven app served\" } else { \"CONTENT: unexpected page\" }; if \\($r.Content -match 'wvwxmsivdecfavxdadgo'\\) { \"note: config inline\" } } catch { \"FAILED: $\\($_.Exception.Message\\)\" }; try { $c = Invoke-WebRequest -Uri 'https://greyhaven-real-estate.vercel.app/js/config.js' -ErrorAction Stop; if \\($c.Content -match 'wvwxmsivdecfavxdadgo'\\) { \"CONFIG: latest commit deployed \\(Supabase URL present\\)\" } else { \"CONFIG: STALE — Supabase URL missing, deploy predates the config push\" } } catch { \"CONFIG CHECK FAILED: $\\($_.Exception.Message\\)\" })"
+    ]
+  }
+}

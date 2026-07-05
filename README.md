@@ -29,12 +29,38 @@ its own two tables.
 
 Notes on shared mode:
 - Changes from other players appear on REFRESH and auto-refresh (every 60s).
-- Anyone who has a copy of the app can edit the map (the anon key is public
-  by design). Keep occasional EXPORTs as backups — IMPORT restores the whole
-  map. For the same reason, keep this repo **private** if `js/config.js` has
-  real values in it.
 - localStorage still acts as an offline cache; if the database is unreachable
   the badge turns red and you see your last synced copy.
+
+## Editor roles (viewers vs editors)
+
+Out of the box, shared mode lets **anyone** with the app edit the map. To
+restrict editing to approved people (everyone else can still view, search
+and interact), turn on editor roles:
+
+1. **SQL Editor** → paste the contents of `supabase_auth_setup.sql` → Run.
+   From now on the database rejects writes from anyone who isn't an
+   approved editor.
+2. **Authentication → Sign In / Providers**: keep "Allow new users to sign
+   up" **ON**, and under the Email provider turn "Confirm email" **OFF**
+   (accounts are username-based — there is no real inbox to confirm).
+3. **Bootstrap the first admin (yourself):** in the app, EDITOR LOGIN →
+   REQUEST ACCESS → pick a username + password. Then in the dashboard,
+   **Table Editor → re_editors** → your row → set `approved` and `admin`
+   to true.
+
+How it works from then on — no emails anywhere:
+
+- Anyone can hit **EDITOR LOGIN → REQUEST ACCESS** and pick a username +
+  password. Their account starts **PENDING** (view-only).
+- An admin opens the **ADMIN** button in the top bar and APPROVEs,
+  REJECTs, or later REVOKEs accounts. Approval kicks in on the editor's
+  next refresh (or within the 60s auto-refresh).
+- Editing buttons (add / edit / draw / import) only appear for approved
+  editors — and the database enforces it server-side regardless.
+
+Keep occasional EXPORTs as backups anyway — any approved editor can still
+IMPORT/replace the whole map.
 
 ## Features
 
@@ -56,6 +82,7 @@ Notes on shared mode:
 ```
 ├── index.html              # the whole app — open this
 ├── supabase_re_setup.sql   # run once in your Supabase SQL editor (shared mode)
+├── supabase_auth_setup.sql # optional: lock editing to editor accounts
 ├── css/style.css           # dark terminal theme, gold accent
 ├── js/config.js            # paste Supabase URL + anon key here (or leave empty)
 ├── js/store.js             # data layer: Supabase REST or localStorage

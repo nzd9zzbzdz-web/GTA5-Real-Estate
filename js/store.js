@@ -23,13 +23,138 @@ const PROP_COLS = ['id', 'name', 'type', 'status', 'price', 'owner', 'garage', '
 const ZONE_COLS = ['id', 'name', 'note', 'color', 'coordinates'];
 function pick(o, cols) { const r = {}; cols.forEach(k => { if (o[k] !== undefined) r[k] = o[k]; }); return r; }
 
+// ---------- auth (editor accounts) ----------
+// Editors sign up in the app with a USERNAME + password — no email.
+// Supabase auth requires an email format internally, so the username
+// becomes username@editors.greyhaven.local behind the scenes; nothing
+// is ever sent anywhere. New accounts start PENDING (view-only) until
+// an admin approves them in the ADMIN panel (re_editors table).
+// The session lives in localStorage so editors stay logged in.
+const AUTH_KEY = 'greyhave_realestate_auth_v1';
+const AUTH_DOMAIN = 'editors.greyhaven.local';
+let _session = null;
+
+function authEmail(username) { return username.toLowerCase() + '@' + AUTH_DOMAIN; }
+function validUsername(u) { return /^[a-zA-Z0-9_-]{3,20}$/.test(u); }
+
+function loadSession() {
+  try { _session = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (e) { _session = null; }
+}
+
+function saveSession(s) {
+  _session = s;
+  if (s) localStorage.setItem(AUTH_KEY, JSON.stringify(s));
+  else localStorage.removeItem(AUTH_KEY);
+}
+
+// Local mode has no accounts — everyone edits their own browser data.
+function isEditor() { return !backendOn() || !!(_session && _session.approved); }
+function isAdmin()  { return backendOn() && !!(_session && _session.approved && _session.admin); }
+
+async function authReq(path, body) {
+  const res = await fetch(SB_URL.replace(/\/+$/, '') + '/auth/v1/' + path, {
+    method: 'POST',
+    headers: { apikey: SB_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error_description || data.msg || data.message || ('AUTH ERROR ' + res.status));
+  return data;
+}
+
+function sessionFrom(data) {
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    // refresh 60s early so a token never expires mid-request
+    expires_at: Date.now() + Math.max((data.expires_in || 3600) - 60, 60) * 1000,
+    user_id: (data.user && data.user.id) || (_session && _session.user_id) || null,
+    username: (_session && _session.username) || '',
+    approved: !!(_session && _session.approved),
+    admin: !!(_session && _session.admin)
+  };
+}
+
+async function login(username, password) {
+  const data = await authReq('token?grant_type=password', { email: authEmail(username), password });
+  _session = null;                         // fresh session, no stale flags
+  const s = sessionFrom(data);
+  s.username = username.toLowerCase();
+  saveSession(s);
+  await fetchEditorStatus();
+}
+
+async function signupEditor(username, password) {
+  let data;
+  try {
+    data = await authReq('signup', { email: authEmail(username), password });
+  } catch (e) {
+    if (/already/i.test(e.message)) throw new Error('THAT USERNAME IS TAKEN');
+    throw e;
+  }
+  if (!data.access_token) throw new Error('SIGNUP INCOMPLETE — "CONFIRM EMAIL" MUST BE TURNED OFF IN SUPABASE');
+  _session = null;
+  const s = sessionFrom(data);
+  s.username = username.toLowerCase();
+  saveSession(s);
+  // File the access request — starts unapproved; an admin flips it.
+  await sbReq('re_editors', { method: 'POST', body: { user_id: s.user_id, username: s.username } });
+}
+
+// Re-reads approved/admin flags so an approval takes effect on the
+// next refresh without the editor logging out and back in.
+async function fetchEditorStatus() {
+  if (!_session || !_session.user_id) return;
+  try {
+    const rows = await sbReq('re_editors?user_id=eq.' + _session.user_id + '&select=username,approved,admin');
+    if (rows && rows[0]) {
+      _session.username = rows[0].username;
+      _session.approved = !!rows[0].approved;
+      _session.admin = !!rows[0].admin;
+    } else {
+      _session.approved = false; _session.admin = false;   // removed by an admin
+    }
+    saveSession(_session);
+  } catch (e) { /* offline — keep last known status */ }
+}
+
+async function logout() {
+  const token = _session && _session.access_token;
+  saveSession(null);
+  if (token) {
+    // best-effort server-side revoke; local session is already gone
+    fetch(SB_URL.replace(/\/+$/, '') + '/auth/v1/logout', {
+      method: 'POST',
+      headers: { apikey: SB_ANON_KEY, Authorization: 'Bearer ' + token }
+    }).catch(() => {});
+  }
+}
+
+// Returns a valid access token, refreshing if stale; null = not logged in.
+async function currentAccessToken() {
+  if (!_session) return null;
+  if (Date.now() < _session.expires_at) return _session.access_token;
+  try {
+    const data = await authReq('token?grant_type=refresh_token', { refresh_token: _session.refresh_token });
+    saveSession(sessionFrom(data));
+    return _session.access_token;
+  } catch (e) {
+    saveSession(null);
+    if (typeof updateAuthUI === 'function') updateAuthUI();
+    throw new Error('SESSION EXPIRED — LOG IN AGAIN');
+  }
+}
+
 // ---------- Supabase REST (PostgREST) ----------
 async function sbReq(path, opts = {}) {
   const method = opts.method || 'GET';
-  // New-style keys (sb_publishable_...) go in apikey only; the old
-  // JWT-style anon keys also need the Authorization header.
   const headers = { apikey: SB_ANON_KEY };
-  if (!SB_ANON_KEY.startsWith('sb_')) headers.Authorization = 'Bearer ' + SB_ANON_KEY;
+  // Logged-in editor: their token carries write rights. Otherwise
+  // old JWT-style anon keys also go in the Authorization header
+  // (new sb_publishable_* keys must NOT).
+  const token = await currentAccessToken();
+  if (token) headers.Authorization = 'Bearer ' + token;
+  else if (!SB_ANON_KEY.startsWith('sb_')) headers.Authorization = 'Bearer ' + SB_ANON_KEY;
   if (method !== 'GET') { headers['Content-Type'] = 'application/json'; headers.Prefer = 'return=minimal'; }
   const res = await fetch(SB_URL.replace(/\/+$/, '') + '/rest/v1/' + path, {
     method, headers,
@@ -74,6 +199,7 @@ function saveLocalCache() {
 async function loadState() {
   loadLocalCache();                             // instant paint from cache
   if (!backendOn()) { setSyncBadge('LOCAL DATA — NO SERVER', ''); return; }
+  if (_session) await fetchEditorStatus();      // pick up approvals/revokes
   try {
     const [props, zones] = await Promise.all([
       sbReq('re_properties?select=*'),
