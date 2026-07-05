@@ -116,12 +116,30 @@ function pinGlyphOf(p) { return p.pin_icon || typeGlyph(p.type); }
 
 function pinIcon(p) {
   return L.divIcon({
-    className: 'map-pin',
-    html: `<div style="width:26px;height:26px;border-radius:50%;background:${pinColorOf(p)};border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;">${esc(pinGlyphOf(p))}</div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -14]
+    // For Sale pins pulse a ring at ground level (see .pin-pulse in CSS)
+    className: 'map-pin' + (p.status === 'For Sale' ? ' pin-pulse' : ''),
+    html: `<div class="pin-wrap" style="--pin:${pinColorOf(p)};">
+      <div class="pin-head"><span class="pin-glyph">${esc(pinGlyphOf(p))}</span></div>
+    </div>`,
+    iconSize: [34, 40],
+    iconAnchor: [17, 38],      // tip of the teardrop sits on the property
+    popupAnchor: [0, -36],
+    tooltipAnchor: [0, -38]
   });
+}
+
+// Hover mini-card: cover photo, status, name, price at a glance.
+function pinTooltipHtml(p) {
+  const photos = propPhotos(p);
+  const rent = p.status === 'For Rent' || p.status === 'Rented';
+  return `<div class="pin-card">
+    ${photos.length ? `<img src="${photos[0]}" alt="">` : ''}
+    <div class="pin-card-body">
+      <div class="pin-card-status" style="color:${statusColor(p.status)};">&#9632; ${esc(String(p.status || 'UNKNOWN').toUpperCase())}</div>
+      <div class="pin-card-name">${esc(pinGlyphOf(p))} ${esc(p.name)}</div>
+      <div class="pin-card-price">${fmtMoney(p.price)}${rent ? ' <span>/ week</span>' : ''}</div>
+    </div>
+  </div>`;
 }
 
 function paintPins() {
@@ -130,6 +148,7 @@ function paintPins() {
   _propMarkers = {};
   visibleProps().forEach(p => {
     const mk = L.marker([p.y, p.x], { icon: pinIcon(p) }).addTo(_pinLayer).bindPopup(propPopupHtml(p));
+    mk.bindTooltip(pinTooltipHtml(p), { direction: 'top', opacity: 1, className: 'pin-tip' });
     _propMarkers[p.id] = mk;
   });
 }

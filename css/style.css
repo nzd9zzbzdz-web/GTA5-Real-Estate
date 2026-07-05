@@ -24,6 +24,7 @@
   --ambertxt: #fbbf24;
   --cyan: #e8c15a;
   --font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --display: 'Cinzel', 'Times New Roman', serif;
 
   /* glass tokens */
   --glass: rgba(255, 255, 255, .045);
@@ -119,9 +120,10 @@ body {
   50%      { filter: brightness(1.09) drop-shadow(0 0 64px rgba(232, 193, 90, .6)); }
 }
 .splash-brand {
-  font-size: clamp(18px, 4vw, 26px);
-  font-weight: 800;
-  letter-spacing: 6px;
+  font-family: var(--display);
+  font-size: clamp(20px, 4.2vw, 30px);
+  font-weight: 700;
+  letter-spacing: 5px;
   background: linear-gradient(120deg, #f5e0a3, #e8c15a 45%, #b08c2e);
   -webkit-background-clip: text;
   background-clip: text;
@@ -216,9 +218,10 @@ body {
 }
 .topbar-left { display: flex; align-items: center; gap: 1.25rem; }
 .brand {
-  font-size: 13px;
-  letter-spacing: 3px;
-  font-weight: 800;
+  font-family: var(--display);
+  font-size: 14px;
+  letter-spacing: 2px;
+  font-weight: 700;
   white-space: nowrap;
   background: linear-gradient(120deg, #f5e0a3, #e8c15a 45%, #b08c2e);
   -webkit-background-clip: text;
@@ -267,7 +270,7 @@ body {
 .page.active { display: block; animation: pageIn .25s ease; }
 @keyframes pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--gbrd); gap: 10px; flex-wrap: wrap; }
-.page-title { color: var(--text); font-size: 14px; font-weight: 700; letter-spacing: 3px; }
+.page-title { color: var(--text); font-family: var(--display); font-size: 15px; font-weight: 700; letter-spacing: 2px; }
 .page-title span { color: var(--cyan); }
 .card {
   background: var(--glass);
@@ -336,7 +339,7 @@ body {
   border-color: rgba(232, 193, 90, .35);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .1), 0 10px 26px rgba(0, 0, 0, .45), 0 0 20px var(--gold-glow);
 }
-.stat-num { color: var(--cyan); font-size: 28px; font-weight: 800; letter-spacing: .5px; }
+.stat-num { color: var(--cyan); font-family: var(--display); font-size: 26px; font-weight: 700; letter-spacing: .5px; font-variant-numeric: tabular-nums; }
 .stat-lbl { color: var(--text3); font-size: 10px; font-weight: 600; letter-spacing: 2px; margin-top: 4px; }
 @media (max-width: 800px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
 
@@ -492,7 +495,7 @@ img.list-thumb:hover { transform: scale(1.06); border-color: rgba(232, 193, 90, 
 .modal-overlay.open .modal { animation: modalIn .28s cubic-bezier(.2, .9, .3, 1.2); }
 @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--gbrd); }
-.modal-title { color: var(--cyan); font-size: 13px; font-weight: 700; letter-spacing: 3px; }
+.modal-title { color: var(--cyan); font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: 2px; }
 .modal-close {
   position: relative;
   overflow: hidden;
@@ -537,6 +540,106 @@ img.list-thumb:hover { transform: scale(1.06); border-color: rgba(232, 193, 90, 
 
 /* MAP */
 #map-canvas { border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+
+/* Tint the satellite image to sit inside the dark/gold theme,
+   and match the out-of-bounds backdrop to the app background. */
+.leaflet-container { background: #0b0a07 !important; }
+.leaflet-image-layer {
+  filter: grayscale(.25) sepia(.26) saturate(.85) brightness(.76) contrast(1.06);
+}
+/* soft vignette over the map edges — above the image (400),
+   below markers (600) and popups (700) in Leaflet's pane stack */
+#map-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 500;
+  background: radial-gradient(115% 95% at 50% 42%, transparent 58%, rgba(5, 4, 2, .5) 100%);
+  box-shadow: inset 0 0 70px rgba(5, 4, 2, .55);
+}
+
+/* MAP PINS — teardrop marker: color = status, glyph = type */
+.map-pin { background: transparent; border: none; }
+.leaflet-marker-icon:hover { z-index: 10000 !important; }
+.pin-wrap {
+  position: relative;
+  width: 34px;
+  height: 40px;
+  transform-origin: 50% 100%;
+  transition: transform .15s ease;
+}
+.leaflet-marker-icon:hover .pin-wrap { transform: scale(1.14); }
+.pin-head {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 30px;
+  height: 30px;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 55%),
+    var(--pin);
+  border: 2px solid rgba(255, 255, 255, .92);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pin-glyph { transform: rotate(45deg); font-size: 13px; line-height: 1; text-shadow: 0 1px 2px rgba(0, 0, 0, .45); }
+/* ground shadow under the tip */
+.pin-wrap::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 14px;
+  height: 5px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse, rgba(0, 0, 0, .5), transparent 70%);
+  border-radius: 50%;
+}
+/* FOR SALE pins pulse a ring at ground level */
+.pin-pulse .pin-wrap::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -3px;
+  width: 26px;
+  height: 10px;
+  margin-left: -13px;
+  border: 1px solid var(--pin);
+  border-radius: 50%;
+  opacity: 0;
+  animation: pinPulse 2.4s ease-out infinite;
+}
+@keyframes pinPulse {
+  0%   { transform: scale(.35); opacity: .85; }
+  70%  { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* PIN HOVER CARD — glass mini-listing shown as a Leaflet tooltip */
+.leaflet-tooltip.pin-tip {
+  background: rgba(20, 17, 11, .96);
+  border: 1px solid var(--gbrd2);
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .6);
+  padding: 0;
+  overflow: hidden;
+  white-space: normal;
+  font-family: var(--font);
+  color: var(--text);
+}
+.leaflet-tooltip.pin-tip::before { display: none; }
+.pin-card { width: 188px; }
+.pin-card img { width: 100%; height: 92px; object-fit: cover; display: block; }
+.pin-card-body { padding: 8px 11px 9px; display: flex; flex-direction: column; gap: 3px; }
+.pin-card-status { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; }
+.pin-card-name { color: var(--text); font-size: 12px; font-weight: 600; line-height: 1.35; }
+.pin-card-price { color: var(--cyan); font-size: 14px; font-weight: 800; }
+.pin-card-price span { font-size: 10px; font-weight: 500; color: var(--text3); }
 
 /* Leaflet zoom controls — glass */
 .leaflet-touch .leaflet-bar, .leaflet-bar { border: 1px solid var(--gbrd2) !important; border-radius: 12px !important; overflow: hidden; box-shadow: var(--shadow) !important; }
