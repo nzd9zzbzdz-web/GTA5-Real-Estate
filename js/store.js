@@ -33,7 +33,7 @@ function initFirebase() {
 
 // Columns that belong in the database — imports are trimmed to these
 // so a hand-edited JSON with extra keys doesn't pollute the docs.
-const PROP_COLS = ['id', 'name', 'type', 'status', 'price', 'owner', 'garage', 'description', 'photo', 'x', 'y', 'created_at', 'updated_at'];
+const PROP_COLS = ['id', 'name', 'type', 'status', 'price', 'owner', 'garage', 'description', 'photo', 'photos', 'x', 'y', 'created_at', 'updated_at'];
 const ZONE_COLS = ['id', 'name', 'note', 'color', 'coordinates'];
 function pick(o, cols) { const r = {}; cols.forEach(k => { if (o[k] !== undefined) r[k] = o[k]; }); return r; }
 

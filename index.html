@@ -96,8 +96,8 @@
       <div><label>GARAGE SPACES</label><input type="text" id="pr-garage" placeholder="e.g. 4"></div>
     </div>
     <label>DESCRIPTION / INTERIOR NOTES</label><textarea id="pr-desc" placeholder="Interior type, stash size, view, selling points..."></textarea>
-    <label>PHOTO (screenshot)</label>
-    <input type="file" id="pr-photo-file" accept="image/*" onchange="onPhotoPicked(this)">
+    <label>PHOTOS (screenshots — up to 6, first is the cover)</label>
+    <input type="file" id="pr-photo-file" accept="image/*" multiple onchange="onPhotoPicked(this)">
     <div id="pr-photo-preview"></div>
     <div class="modal-footer">
       <button class="btn btn-sm btn-danger" id="pr-delete-btn" style="margin-right:auto;display:none;" onclick="deletePropertyFromModal()">DELETE</button>
@@ -192,9 +192,12 @@
   </div>
 </div>
 
-<!-- PHOTO ZOOM -->
-<div class="zoom-overlay" id="zoom-overlay" onclick="this.classList.remove('open')">
-  <img id="zoom-img" src="" alt="">
+<!-- PHOTO ZOOM / GALLERY -->
+<div class="zoom-overlay" id="zoom-overlay" onclick="closeZoom()">
+  <button class="zoom-nav" id="zoom-prev" onclick="event.stopPropagation();zoomNav(-1)">&#10094;</button>
+  <img id="zoom-img" src="" alt="" onclick="event.stopPropagation();zoomNav(1)">
+  <button class="zoom-nav" id="zoom-next" onclick="event.stopPropagation();zoomNav(1)">&#10095;</button>
+  <div class="zoom-counter" id="zoom-counter"></div>
 </div>
 
 <!-- SCRIPTS -->

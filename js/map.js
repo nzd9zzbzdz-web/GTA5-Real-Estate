@@ -48,7 +48,15 @@ let _drawPreview = null;
 let _drawEditId = null;
 let _propMarkers = {};   // property id -> Leaflet marker (for fly-to)
 let _zoneShapes = {};    // zone id -> Leaflet polygon
-let _photoData = null;   // working photo (data URL) in the open modal
+let _photos = [];        // working photo list (data URLs) in the open modal
+
+const MAX_PHOTOS = 6;    // ~100 KB each; Firestore docs cap at 1 MB
+
+// A property's photo list — old rows have a single `photo` field.
+function propPhotos(p) {
+  if (Array.isArray(p.photos) && p.photos.length) return p.photos.filter(Boolean);
+  return p.photo ? [p.photo] : [];
+}
 
 // ---------- init ----------
 // Bounds come from the image's natural size, so a swapped-in
@@ -119,6 +127,7 @@ function paintPins() {
 
 function propPopupHtml(p) {
   const c = statusColor(p.status);
+  const photos = propPhotos(p);
   return `<div style="min-width:190px;max-width:240px;">
     <div style="color:${c};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; ${esc(String(p.status || 'UNKNOWN').toUpperCase())}</div>
     <div style="font-weight:bold;font-size:14px;margin-bottom:2px;">${typeGlyph(p.type)} ${esc(p.name)}</div>
@@ -126,17 +135,50 @@ function propPopupHtml(p) {
     <div style="font-size:16px;font-weight:bold;color:#8a6d1a;margin-bottom:4px;">${fmtMoney(p.price)}${p.status === 'For Rent' || p.status === 'Rented' ? ' <span style="font-size:10px;font-weight:normal;">/ week</span>' : ''}</div>
     ${p.owner ? `<div style="font-size:11px;margin-bottom:4px;">OWNER: <b>${esc(p.owner)}</b></div>` : ''}
     ${p.description ? `<div style="font-size:11px;line-height:1.5;margin-bottom:4px;">${esc(p.description)}</div>` : ''}
-    ${p.photo ? `<img src="${p.photo}" style="width:100%;max-height:120px;object-fit:cover;cursor:zoom-in;border:1px solid #ccc;margin-bottom:4px;" onclick="zoomPhoto(${p.id})">` : ''}
+    ${photos.length ? `<div style="position:relative;margin-bottom:4px;">
+      <img src="${photos[0]}" style="width:100%;max-height:120px;object-fit:cover;cursor:zoom-in;border:1px solid #ccc;display:block;" onclick="zoomPhoto(${p.id})">
+      ${photos.length > 1 ? `<span style="position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;padding:2px 6px;letter-spacing:1px;pointer-events:none;">${photos.length} PHOTOS</span>` : ''}
+    </div>` : ''}
     ${isEditor() ? `<div style="margin-top:6px;"><button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button></div>` : ''}
   </div>`;
 }
 
+// ---------- photo zoom gallery ----------
+let _zoomList = [];
+let _zoomIdx = 0;
+
 function zoomPhoto(id) {
   const p = state.properties.find(x => x.id === id);
-  if (!p || !p.photo) return;
-  document.getElementById('zoom-img').src = p.photo;
+  _zoomList = p ? propPhotos(p) : [];
+  if (!_zoomList.length) return;
+  _zoomIdx = 0;
+  renderZoom();
   document.getElementById('zoom-overlay').classList.add('open');
 }
+
+function renderZoom() {
+  document.getElementById('zoom-img').src = _zoomList[_zoomIdx];
+  const multi = _zoomList.length > 1;
+  document.getElementById('zoom-prev').style.display = multi ? 'block' : 'none';
+  document.getElementById('zoom-next').style.display = multi ? 'block' : 'none';
+  document.getElementById('zoom-counter').textContent = multi ? (_zoomIdx + 1) + ' / ' + _zoomList.length : '';
+}
+
+// Clicking the image also advances; with a single photo it closes.
+function zoomNav(d) {
+  if (_zoomList.length < 2) { closeZoom(); return; }
+  _zoomIdx = (_zoomIdx + d + _zoomList.length) % _zoomList.length;
+  renderZoom();
+}
+
+function closeZoom() { document.getElementById('zoom-overlay').classList.remove('open'); }
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('zoom-overlay').classList.contains('open')) return;
+  if (e.key === 'ArrowRight') zoomNav(1);
+  else if (e.key === 'ArrowLeft') zoomNav(-1);
+  else if (e.key === 'Escape') closeZoom();
+});
 
 // ---------- neighborhood zones ----------
 function paintZones() {
@@ -398,7 +440,7 @@ function deleteZoneFromModal() {
 
 // ---------- property modal ----------
 function openPropertyModal(id, x, y) {
-  _photoData = null;
+  _photos = [];
   document.getElementById('pr-err').style.display = 'none';
   document.getElementById('pr-photo-file').value = '';
   if (id) {
@@ -416,7 +458,7 @@ function openPropertyModal(id, x, y) {
     document.getElementById('pr-owner').value = p.owner || '';
     document.getElementById('pr-garage').value = p.garage || '';
     document.getElementById('pr-desc').value = p.description || '';
-    _photoData = p.photo || null;
+    _photos = propPhotos(p).slice();
   } else {
     document.getElementById('property-modal-title').textContent = 'NEW PROPERTY';
     document.getElementById('pr-save-btn').textContent = 'CREATE LISTING';
@@ -438,22 +480,40 @@ function openPropertyModal(id, x, y) {
 }
 
 function onPhotoPicked(input) {
-  const file = input.files[0]; if (!file) return;
-  compressImage(file, dataUrl => { _photoData = dataUrl; renderPhotoPreview(); });
+  const files = Array.from(input.files || []);
+  input.value = '';                       // allow re-picking the same file
+  if (!files.length) return;
+  const room = MAX_PHOTOS - _photos.length;
+  if (room <= 0) { alert('MAX ' + MAX_PHOTOS + ' PHOTOS PER PROPERTY — REMOVE ONE FIRST.'); return; }
+  if (files.length > room) alert('ONLY ADDING THE FIRST ' + room + ' — MAX ' + MAX_PHOTOS + ' PHOTOS PER PROPERTY.');
+  files.slice(0, room).forEach(f =>
+    compressImage(f, dataUrl => { _photos.push(dataUrl); renderPhotoPreview(); }));
 }
 
-function removePhoto() {
-  _photoData = null;
-  document.getElementById('pr-photo-file').value = '';
+function removePhotoAt(i) {
+  _photos.splice(i, 1);
+  renderPhotoPreview();
+}
+
+function makeCover(i) {
+  if (i <= 0) return;
+  _photos.unshift(_photos.splice(i, 1)[0]);
   renderPhotoPreview();
 }
 
 function renderPhotoPreview() {
   const wrap = document.getElementById('pr-photo-preview');
-  wrap.innerHTML = _photoData
-    ? `<img src="${_photoData}" style="width:140px;height:90px;object-fit:cover;border:1px solid var(--border2);">
-       <button class="btn btn-sm btn-danger" type="button" onclick="removePhoto()">REMOVE PHOTO</button>`
-    : '<span style="color:var(--text3);font-size:11px;">NO PHOTO</span>';
+  if (!_photos.length) {
+    wrap.innerHTML = '<span style="color:var(--text3);font-size:11px;">NO PHOTOS</span>';
+    return;
+  }
+  wrap.innerHTML = _photos.map((ph, i) => `
+    <div class="photo-thumb${i === 0 ? ' cover' : ''}" title="${i === 0 ? 'Cover photo' : 'Click to make this the cover'}" onclick="makeCover(${i})">
+      <img src="${ph}" alt="">
+      ${i === 0 ? '<span class="thumb-tag">COVER</span>' : ''}
+      <button type="button" class="thumb-x" title="Remove" onclick="event.stopPropagation();removePhotoAt(${i})">&#10005;</button>
+    </div>`).join('')
+    + `<span style="color:var(--text3);font-size:10px;">${_photos.length}/${MAX_PHOTOS}</span>`;
 }
 
 async function saveProperty() {
@@ -469,11 +529,19 @@ async function saveProperty() {
     owner: v('pr-owner'),
     garage: v('pr-garage'),
     description: v('pr-desc'),
-    photo: _photoData,
+    photos: _photos.slice(),
+    photo: null,                 // legacy single-photo field, superseded
     x: Number(document.getElementById('pr-x').value),
     y: Number(document.getElementById('pr-y').value),
     updated_at: new Date().toISOString()
   };
+  // Firestore documents cap at 1 MB — leave headroom for the text fields.
+  const photoBytes = data.photos.reduce((s, ph) => s + ph.length, 0);
+  if (photoBytes > 900000) {
+    err.textContent = 'PHOTOS TOO LARGE FOR ONE LISTING — REMOVE ONE OR TWO';
+    err.style.display = 'block';
+    return;
+  }
   try {
     if (editId) {
       await dbPatch('re_properties', editId, data);

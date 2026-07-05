@@ -60,8 +60,9 @@ IMPORT/replace the whole map.
 - **Property pins** on the GTA5 map — pin **color = status** (For Sale, For
   Rent, Sold, Owned, Rented, Off Market), pin **icon = type** (House,
   Apartment, Mansion, Business, Warehouse, Garage, Office, Hotel, Land).
-- Price, owner/tenant, garage spaces, interior notes and a **photo**
-  (screenshots are auto-compressed to ~100 KB).
+- Price, owner/tenant, garage spaces, interior notes and up to **6 photos**
+  per property (screenshots are auto-compressed to ~100 KB each; the first
+  is the cover, click it in a popup to flip through the gallery).
 - **Neighborhood zones** — draw shaded, named areas on the map
   (e.g. "Vinewood Hills — $2M and up").
 - **Filters** by status and type, plus live text search.

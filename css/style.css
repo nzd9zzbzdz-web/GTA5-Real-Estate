@@ -118,10 +118,22 @@ td.name-col { color: var(--cyan); }
 .leaflet-tooltip.territory-label { background: transparent; border: none; box-shadow: none; color: #fff; font-family: var(--font); font-size: 11px; font-weight: bold; letter-spacing: 1px; text-shadow: 0 0 4px #000, 0 0 4px #000; text-transform: uppercase; }
 .leaflet-tooltip.territory-label::before { display: none; }
 
-/* PHOTO PREVIEW */
-#pr-photo-preview { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+/* PHOTO PREVIEW (modal thumbnails) */
+#pr-photo-preview { margin-top: 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.photo-thumb { position: relative; border: 1px solid var(--border2); cursor: pointer; }
+.photo-thumb:hover { border-color: var(--text3); }
+.photo-thumb.cover { border-color: var(--accent); cursor: default; }
+.photo-thumb img { width: 104px; height: 66px; object-fit: cover; display: block; }
+.photo-thumb .thumb-tag { position: absolute; left: 0; bottom: 0; background: var(--accent); color: #000; font-size: 9px; font-weight: bold; letter-spacing: 1px; padding: 1px 5px; }
+.photo-thumb .thumb-x { position: absolute; top: 0; right: 0; background: rgba(0,0,0,.75); color: #fff; border: none; font-size: 11px; line-height: 1; padding: 3px 6px; cursor: pointer; }
+.photo-thumb .thumb-x:hover { background: var(--redtxt); }
 
-/* PHOTO ZOOM */
+/* PHOTO ZOOM / GALLERY */
 .zoom-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.97); z-index: 2000; align-items: center; justify-content: center; cursor: zoom-out; }
 .zoom-overlay.open { display: flex; }
-.zoom-overlay img { max-width: 85vw; max-height: 85vh; object-fit: contain; border: 2px solid var(--border2); }
+.zoom-overlay img { max-width: 85vw; max-height: 85vh; object-fit: contain; border: 2px solid var(--border2); cursor: pointer; }
+.zoom-nav { position: fixed; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,.55); color: #fff; border: 1px solid var(--border2); font-size: 24px; line-height: 1; padding: 14px 15px; cursor: pointer; z-index: 2001; }
+.zoom-nav:hover { background: rgba(255,255,255,.14); }
+#zoom-prev { left: 18px; }
+#zoom-next { right: 18px; }
+.zoom-counter { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 12px; letter-spacing: 3px; text-shadow: 0 0 5px #000; }
