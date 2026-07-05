@@ -13,14 +13,11 @@
 // in this browser's localStorage).
 // ============================================================
 
-const FIREBASE_CONFIG = null;
-
-// Example of what it looks like filled in:
-// const FIREBASE_CONFIG = {
-//   apiKey: "AIzaSy...",
-//   authDomain: "your-project.firebaseapp.com",
-//   projectId: "your-project",
-//   storageBucket: "your-project.firebasestorage.app",
-//   messagingSenderId: "1234567890",
-//   appId: "1:1234567890:web:abc123"
-// };
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDjOEwtvOAPZ3ViC8mYXYb2aVtHY5kvJr0",
+  authDomain: "greyhaven-real-estate.firebaseapp.com",
+  projectId: "greyhaven-real-estate",
+  storageBucket: "greyhaven-real-estate.firebasestorage.app",
+  messagingSenderId: "249303202765",
+  appId: "1:249303202765:web:390452622e35e10c0ca284"
+};
