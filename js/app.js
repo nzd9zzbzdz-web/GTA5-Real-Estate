@@ -417,11 +417,13 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
   showPage(location.hash === '#listings' ? 'listings' : 'map');
 })();
 
-// Shared mode: pull other players' changes every 60s — but never
-// while the user is placing, drawing, or has a modal/popup open.
+// Map data arrives live via onSnapshot (see store.js). This only
+// re-checks the signed-in editor's approved/admin flags once a
+// minute — a single document read — so approvals take effect
+// without a re-login.
 setInterval(async () => {
-  if (!backendOn() || document.hidden || _placeMode || _drawMode) return;
-  if (document.querySelector('.modal-overlay.open') || document.querySelector('.leaflet-popup')) return;
-  await loadState();
-  refreshAll();
+  if (!backendOn() || !_user || document.hidden) return;
+  const before = JSON.stringify(_session);
+  await fetchEditorStatus();
+  if (JSON.stringify(_session) !== before) { updateAuthUI(); refreshAll(); }
 }, 60000);

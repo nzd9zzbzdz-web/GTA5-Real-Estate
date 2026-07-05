@@ -188,19 +188,55 @@ async function loadState() {
   loadLocalCache();                             // instant paint from cache
   if (!backendOn()) { setSyncBadge('LOCAL DATA — NO SERVER', ''); return; }
   if (_user) await fetchEditorStatus();         // pick up approvals/revokes
-  try {
-    const [ps, zs] = await Promise.all([
-      _db.collection('re_properties').get(),
-      _db.collection('re_zones').get()
-    ]);
-    state.properties = ps.docs.map(d => decodeRow('re_properties', d.data()));
-    state.zones = zs.docs.map(d => decodeRow('re_zones', d.data()));
-    saveLocalCache();
-    setSyncBadge('SHARED DB — CONNECTED', 'var(--greentxt)');
-  } catch (e) {
-    console.error('DB load failed', e);
-    setSyncBadge('DB UNREACHABLE — SHOWING LOCAL COPY', 'var(--redtxt)');
-  }
+  await startRealtimeSync();
+}
+
+// ---------- live sync ----------
+// One onSnapshot listener per collection, attached once: Firestore
+// pushes every remote change the moment it happens — no polling, and
+// only changed documents count as reads after the initial load.
+// Boot waits for the first snapshot, with a timeout so an offline
+// start still paints from the local cache instead of hanging.
+let _unsubs = [];
+let _live = false;
+let _pendingPaint = false;
+
+function startRealtimeSync() {
+  if (_unsubs.length) return Promise.resolve();   // already listening
+  const listen = (coll, key) => new Promise(resolve => {
+    let initial = true;
+    _unsubs.push(_db.collection(coll).onSnapshot(snap => {
+      state[key] = snap.docs.map(d => decodeRow(coll, d.data()));
+      saveLocalCache();
+      _live = true;
+      setSyncBadge('SHARED DB — LIVE', 'var(--greentxt)');
+      if (initial) { initial = false; resolve(); }
+      else safeRepaint();
+    }, e => {
+      console.error('Live sync failed', e);
+      setSyncBadge('DB UNREACHABLE — SHOWING LOCAL COPY', 'var(--redtxt)');
+      if (initial) { initial = false; resolve(); }
+    }));
+  });
+  return Promise.race([
+    Promise.all([listen('re_properties', 'properties'), listen('re_zones', 'zones')]),
+    new Promise(res => setTimeout(res, 6000))     // offline boot: continue on cache
+  ]).then(() => {
+    if (!_live) setSyncBadge('CONNECTING — SHOWING LOCAL COPY', 'var(--ambertxt)');
+  });
+}
+
+// Repaint a pushed change — but never under the user's feet. While a
+// modal, map popup, placement or drawing is active the repaint is held
+// (state itself is already fresh) and flushed when the modal closes.
+function safeRepaint() {
+  const busy =
+    (typeof _placeMode !== 'undefined' && (_placeMode || _drawMode)) ||
+    document.querySelector('.modal-overlay.open') ||
+    document.querySelector('.leaflet-popup');
+  if (busy) { _pendingPaint = true; return; }
+  _pendingPaint = false;
+  if (typeof refreshAll === 'function') refreshAll();
 }
 
 function setSyncBadge(text, color) {
@@ -241,7 +277,10 @@ function fmtDate(iso) {
 }
 
 function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  if (_pendingPaint) safeRepaint();   // apply live updates held during the modal
+}
 
 // ---------- export / import ----------
 function exportData() {
