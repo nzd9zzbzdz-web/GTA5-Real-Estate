@@ -336,10 +336,11 @@ function renderListings() {
 }
 
 // ---------- splash screen ----------
-// Shown on plain visits; skipped for deep links (URL hash) and for
-// anyone who ticked "don't show this again". Data loads behind it.
+// Shown on plain visits; skipped for real deep links and for anyone
+// who ticked "don't show this again". #map / #listings are just the
+// app's own tab memory, not deep links. Data loads behind the splash.
 function shouldShowSplash() {
-  if (location.hash) return false;
+  if (location.hash && !/^#(map|listings)$/.test(location.hash)) return false;
   return localStorage.getItem('greyhave_skip_splash') !== '1';
 }
 
