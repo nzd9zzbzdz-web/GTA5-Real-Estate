@@ -203,8 +203,13 @@ function renderListings() {
     return (x < y ? -1 : x > y ? 1 : 0) * _sortDir;
   });
   const arrow = k => _sortKey === k ? (_sortDir === 1 ? ' ▲' : ' ▼') : '';
-  const body = rows.map(p => `<tr>
-      <td class="name-col">${esc(pinGlyphOf(p))} ${esc(p.name)}</td>
+  const body = rows.map(p => {
+    const cover = propPhotos(p)[0];
+    const thumb = cover
+      ? `<img class="list-thumb" src="${cover}" alt="" title="View photos" onclick="zoomPhoto(${p.id})">`
+      : `<span class="list-thumb list-thumb-ph">${esc(pinGlyphOf(p))}</span>`;
+    return `<tr>
+      <td class="name-col"><div class="name-cell">${thumb}<span>${esc(p.name)}</span></div></td>
       <td>${esc(p.type)}</td>
       <td><span class="status-badge" style="border-color:${statusColor(p.status)};color:${statusColor(p.status)};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span></td>
       <td style="color:var(--cyan);">${fmtMoney(p.price)}</td>
@@ -214,7 +219,8 @@ function renderListings() {
         <button class="btn btn-sm" onclick="goToProperty(${p.id})">&#128205; MAP</button>
         ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="openPropertyModal(${p.id})">EDIT</button>` : ''}
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   document.getElementById('listings-table-wrap').innerHTML = rows.length
     ? `<div class="card" style="padding:0;"><table>
         <thead><tr>

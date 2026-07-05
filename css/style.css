@@ -246,6 +246,10 @@ td { padding: 11px 14px; border-bottom: 1px solid rgba(255, 255, 255, .05); colo
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255, 255, 255, .035); color: var(--text); }
 td.name-col { color: var(--cyan); font-weight: 600; }
+.name-cell { display: flex; align-items: center; gap: 10px; }
+.list-thumb { width: 56px; height: 38px; flex-shrink: 0; object-fit: cover; border: 1px solid var(--gbrd2); border-radius: 8px; cursor: zoom-in; transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease; }
+img.list-thumb:hover { transform: scale(1.06); border-color: rgba(232, 193, 90, .5); box-shadow: 0 4px 14px rgba(0, 0, 0, .5); }
+.list-thumb-ph { display: flex; align-items: center; justify-content: center; background: var(--glass); font-size: 17px; cursor: default; }
 .status-badge { display: inline-block; padding: 3px 10px; font-size: 9px; font-weight: 700; letter-spacing: 2px; border: 1px solid; border-radius: 999px; background: rgba(0, 0, 0, .25); white-space: nowrap; }
 
 /* SEARCH + INPUTS */
