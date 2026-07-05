@@ -74,8 +74,8 @@ body {
 .splash-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 2rem; text-align: center; animation: splashIn .8s ease; }
 @keyframes splashIn { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 .splash-logo {
-  width: min(240px, 55vw);
-  margin-bottom: 4px;
+  width: min(420px, 78vw, 45vh);
+  margin-bottom: 0;
   /* the PNG is pre-tinted gold; CSS just adds the breathing glow */
   animation: logoGlow 3.5s ease-in-out infinite;
 }
