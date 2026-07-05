@@ -84,7 +84,7 @@ body {
   50%      { transform: translateY(-14px); }
 }
 .splash-logo {
-  width: min(512px, 86vw, 52vh);
+  width: min(420px, 78vw, 45vh);
   display: block;
   /* the PNG is pre-tinted gold; CSS just adds the breathing glow */
   animation: logoGlow 3.5s ease-in-out infinite;
