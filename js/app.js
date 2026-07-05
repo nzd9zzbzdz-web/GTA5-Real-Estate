@@ -221,21 +221,27 @@ function openListing(id) {
   ].map(([k, val]) => `<div><div class="detail-k">${k}</div><div class="detail-v">${esc(val)}</div></div>`).join('')
     + (p.coords ? `<div><div class="detail-k">IN-GAME COORDS</div><div class="detail-v">${esc(p.coords)}
         <button class="btn btn-sm" style="padding:2px 8px;font-size:9px;" onclick="copyCoords(${p.id}, this)">COPY</button></div></div>` : '');
-  document.getElementById('listing-title').textContent = String(p.name || 'LISTING').toUpperCase();
   document.getElementById('listing-detail').innerHTML = `
-    ${photos.length ? `<div class="detail-cover" title="View photos" onclick="zoomPhoto(${p.id})"><img src="${photos[0]}" alt=""></div>` : ''}
-    ${photos.length > 1 ? `<div class="detail-thumbs">${photos.map((ph, i) =>
-      `<img src="${ph}" alt="" onclick="zoomPhoto(${p.id}, ${i})">`).join('')}</div>` : ''}
-    <div style="display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;">
-      <span class="status-badge" style="border-color:${sc};color:${sc};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span>
-      <span class="prop-card-price">${fmtMoney(p.price)}${rent ? '<span> / week</span>' : ''}</span>
+    <div class="detail-hero${photos.length ? '' : ' no-photo'}"${photos.length ? ` title="View photos" onclick="zoomPhoto(${p.id})"` : ''}>
+      ${photos.length ? `<img src="${photos[0]}" alt="">` : `<div class="detail-hero-ph">${esc(pinGlyphOf(p))}</div>`}
+      <div class="detail-hero-grad"></div>
+      ${photos.length > 1 ? `<span class="prop-card-count">&#128247; ${photos.length}</span>` : ''}
+      <div class="detail-hero-text">
+        <span class="status-badge" style="border-color:${sc};color:${sc};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span>
+        <div class="detail-hero-name">${esc(p.name)}</div>
+        <div class="detail-hero-price">${fmtMoney(p.price)}${rent ? '<span> / week</span>' : ''}</div>
+      </div>
     </div>
-    <div class="detail-grid">${facts}</div>
-    ${p.description ? `<div class="detail-desc">${esc(p.description)}</div>` : ''}
-    <div class="modal-footer">
-      <button class="btn btn-sm" onclick="closeModal('modal-listing');goToProperty(${p.id})">&#128205; SHOW ON MAP</button>
-      ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="closeModal('modal-listing');openPropertyModal(${p.id})">EDIT</button>` : ''}
-      <button class="btn btn-sm" onclick="closeModal('modal-listing')">CLOSE</button>
+    <div class="detail-body">
+      ${photos.length > 1 ? `<div class="detail-thumbs">${photos.map((ph, i) =>
+        `<img src="${ph}" alt="" onclick="zoomPhoto(${p.id}, ${i})">`).join('')}</div>` : ''}
+      <div class="detail-grid">${facts}</div>
+      ${p.description ? `<div class="detail-desc">${esc(p.description)}</div>` : ''}
+      <div class="modal-footer">
+        <button class="btn btn-sm" onclick="closeModal('modal-listing');goToProperty(${p.id})">&#128205; SHOW ON MAP</button>
+        ${isEditor() ? `<button class="btn btn-sm btn-warn" onclick="closeModal('modal-listing');openPropertyModal(${p.id})">EDIT</button>` : ''}
+        <button class="btn btn-sm" onclick="closeModal('modal-listing')">CLOSE</button>
+      </div>
     </div>`;
   openModal('modal-listing');
 }
@@ -250,14 +256,15 @@ function cardHtml(p) {
     p.garage ? 'GARAGE ' + p.garage : '',
     p.owner ? 'OWNER: ' + p.owner.toUpperCase() : ''
   ].filter(Boolean).join(' &middot; ');
-  return `<div class="prop-card">
+  return `<div class="prop-card" style="--sc:${sc};">
     <div class="prop-card-media"${cover ? ` onclick="zoomPhoto(${p.id})" title="View photos"` : ''}>
       ${cover ? `<img src="${cover}" alt="" loading="lazy">` : `<div class="prop-card-ph">${esc(pinGlyphOf(p))}</div>`}
+      <div class="prop-card-grad"></div>
       <span class="status-badge prop-card-status" style="border-color:${sc};color:${sc};">${esc(String(p.status || 'UNKNOWN').toUpperCase())}</span>
+      <div class="prop-card-price prop-card-price-over">${fmtMoney(p.price)}${rent ? '<span> / week</span>' : ''}</div>
       ${photos.length > 1 ? `<span class="prop-card-count">&#128247; ${photos.length}</span>` : ''}
     </div>
     <div class="prop-card-body">
-      <div class="prop-card-price">${fmtMoney(p.price)}${rent ? '<span> / week</span>' : ''}</div>
       <div class="prop-card-name" title="Open full listing" onclick="openListing(${p.id})">${esc(pinGlyphOf(p))} ${esc(p.name)}</div>
       <div class="prop-card-meta">${meta}</div>
       ${p.description ? `<div class="prop-card-desc">${esc(p.description)}</div>` : ''}
@@ -361,6 +368,18 @@ function updateSplashStats() {
   el.textContent = state.properties.length + ' PROPERTIES ON THE MAP'
     + (forSale ? ' · ' + forSale + ' FOR SALE' : '');
 }
+
+// ---------- topbar "⋯" menu ----------
+function toggleMoreMenu(e) {
+  e.stopPropagation();
+  document.getElementById('more-menu').classList.toggle('open');
+}
+function closeMoreMenu() {
+  document.getElementById('more-menu').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.menu-wrap')) closeMoreMenu();
+});
 
 // ---------- UI polish ----------
 // Material-style ripple radiating from the click point.

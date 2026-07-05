@@ -28,8 +28,9 @@
 <!-- TOPBAR -->
 <div class="topbar">
   <div class="topbar-left">
-    <div>
-      <div class="brand">&#9632; GREYHAVEN REAL ESTATE</div>
+    <div class="brand-row">
+      <img src="img/logo.png" alt="" class="brand-logo" onerror="this.style.display='none'">
+      <div class="brand">GREYHAVEN REAL ESTATE</div>
     </div>
     <div class="nav-tabs">
       <button class="nav-tab active" id="tab-map" onclick="showPage('map')">&#9632; MAP</button>
@@ -41,9 +42,14 @@
     <span class="brand-sub" id="auth-user" style="display:none;" title="Editor account status"></span>
     <button class="btn btn-sm" id="admin-btn" style="display:none;" onclick="openAdminPanel()">ADMIN</button>
     <button class="btn btn-sm" id="auth-btn" style="display:none;" onclick="authButton()">EDITOR LOGIN</button>
-    <button class="btn btn-sm" onclick="manualRefresh()">REFRESH</button>
-    <button class="btn btn-sm" onclick="exportData()">EXPORT</button>
-    <button class="btn btn-sm" id="import-btn" onclick="document.getElementById('import-file').click()">IMPORT</button>
+    <div class="menu-wrap">
+      <button class="btn btn-sm" id="more-btn" title="Refresh, export, import" onclick="toggleMoreMenu(event)">&#8943;</button>
+      <div class="more-menu" id="more-menu">
+        <button onclick="closeMoreMenu();manualRefresh()">&#10227; REFRESH</button>
+        <button onclick="closeMoreMenu();exportData()">&#11015; EXPORT</button>
+        <button id="import-btn" onclick="closeMoreMenu();document.getElementById('import-file').click()">&#11014; IMPORT</button>
+      </div>
+    </div>
     <input type="file" id="import-file" accept=".json,application/json" style="display:none;" onchange="importData(this)">
   </div>
 </div>
@@ -171,13 +177,10 @@
   </div>
 </div>
 
-<!-- LISTING DETAIL MODAL -->
+<!-- LISTING DETAIL MODAL — hero layout, no standard header -->
 <div class="modal-overlay" id="modal-listing">
-  <div class="modal" style="max-width:560px;">
-    <div class="modal-header">
-      <div class="modal-title" id="listing-title">LISTING</div>
-      <button class="modal-close" onclick="closeModal('modal-listing')">&#10005;</button>
-    </div>
+  <div class="modal modal-hero" style="max-width:560px;">
+    <button class="modal-close listing-close" title="Close" onclick="closeModal('modal-listing')">&#10005;</button>
     <div id="listing-detail"></div>
   </div>
 </div>
