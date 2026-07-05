@@ -52,10 +52,16 @@ let _photos = [];        // working photo list (data URLs) in the open modal
 
 const MAX_PHOTOS = 6;    // ~100 KB each; Firestore docs cap at 1 MB
 
+// Render-time validation. These fields go into HTML/CSS and could be
+// written directly through the database API by any approved editor,
+// so never trust their shape — the app UI being safe isn't enough.
+function safeColor(c) { return typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : null; }
+function safePhoto(s) { return typeof s === 'string' && /^data:image\//.test(s); }
+
 // A property's photo list — old rows have a single `photo` field.
 function propPhotos(p) {
-  if (Array.isArray(p.photos) && p.photos.length) return p.photos.filter(Boolean);
-  return p.photo ? [p.photo] : [];
+  const list = Array.isArray(p.photos) && p.photos.length ? p.photos : (p.photo ? [p.photo] : []);
+  return list.filter(safePhoto);
 }
 
 // ---------- init ----------
@@ -105,7 +111,7 @@ function visibleProps() {
 }
 
 // Per-property overrides beat the automatic scheme.
-function pinColorOf(p) { return p.pin_color || statusColor(p.status); }
+function pinColorOf(p) { return safeColor(p.pin_color) || statusColor(p.status); }
 function pinGlyphOf(p) { return p.pin_icon || typeGlyph(p.type); }
 
 function pinIcon(p) {
@@ -202,14 +208,15 @@ function paintZones() {
       // A zone with a linked listing wears the listing's color —
       // custom pin color if set, otherwise its status color.
       const linked = zoneListing(z.id);
-      const col = linked ? pinColorOf(linked) : (z.color || ZONE_PALETTE[0]);
+      const col = linked ? pinColorOf(linked) : (safeColor(z.color) || ZONE_PALETTE[0]);
       const baseFill = linked ? 0.25 : 0.15;
       // Click-through while placing/drawing so the click reaches the map.
       const poly = L.polygon(z.coordinates, { color: col, weight: 2, fillColor: col, fillOpacity: baseFill, interactive: !(_placeMode || _drawMode) });
       poly.on('mouseover', () => poly.setStyle({ fillOpacity: baseFill + 0.15 }));
       poly.on('mouseout', () => poly.setStyle({ fillOpacity: baseFill }));
       poly.addTo(_zoneLayer).bindPopup(zonePopupHtml(z));
-      if (z.name) poly.bindTooltip(z.name.toUpperCase(), { permanent: true, direction: 'center', className: 'territory-label' });
+      // esc() matters here: Leaflet renders tooltip content as HTML.
+      if (z.name) poly.bindTooltip(esc(z.name.toUpperCase()), { permanent: true, direction: 'center', className: 'territory-label' });
       _zoneShapes[z.id] = poly;
     });
 }
@@ -221,7 +228,7 @@ function zoneListing(zoneId) {
 
 function zonePopupHtml(z) {
   const linked = zoneListing(z.id);
-  const col = linked ? pinColorOf(linked) : (z.color || ZONE_PALETTE[0]);
+  const col = linked ? pinColorOf(linked) : (safeColor(z.color) || ZONE_PALETTE[0]);
   return `<div style="min-width:170px;">
     <div style="color:${col};font-size:10px;letter-spacing:2px;margin-bottom:3px;">&#9632; ${linked ? 'LISTED ZONE' : 'NEIGHBORHOOD'}</div>
     <div style="font-weight:bold;font-size:13px;">${esc(z.name)}</div>
